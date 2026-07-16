@@ -1,0 +1,41 @@
+{
+  "name": "wakil",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.13.1",
+  "engines": {
+    "node": ">=22.13.0 <23"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "db:generate": "pnpm --filter @wakil/db db:generate",
+    "db:migrate": "pnpm --filter @wakil/db db:migrate",
+    "dev": "node scripts/dev.mjs",
+    "dev:down": "docker compose -f infra/docker-compose.yml down",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:integration:migrations": "pnpm --filter @wakil/db test:integration:migrations",
+    "test:smoke": "node scripts/smoke.mjs",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.61.1",
+    "@types/node": "22.20.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.10",
+    "dotenv": "17.4.2",
+    "globals": "17.7.0",
+    "prettier": "3.9.5",
+    "tsx": "4.23.1",
+    "turbo": "2.10.5",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.64.0",
+    "vitest": "4.1.10"
+  }
+}

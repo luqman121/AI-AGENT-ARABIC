@@ -1,0 +1,56 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    ".env.example",
+    "eslint.config.mjs",
+    "prettier.config.mjs",
+    "tsconfig.base.json"
+  ],
+  "globalEnv": ["NODE_ENV"],
+  "globalPassThroughEnv": [
+    "AUTH_GOOGLE_ID",
+    "AUTH_GOOGLE_SECRET",
+    "AUTH_SECRET",
+    "AUTH_URL",
+    "DATABASE_URL",
+    "EMAIL_FROM",
+    "LOG_LEVEL",
+    "REDIS_URL",
+    "S3_ACCESS_KEY_ID",
+    "S3_BUCKET",
+    "S3_ENDPOINT",
+    "S3_FORCE_PATH_STYLE",
+    "S3_REGION",
+    "S3_SECRET_ACCESS_KEY",
+    "SMTP_HOST",
+    "SMTP_PORT"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "dependsOn": ["^build"],
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test:integration": {
+      "cache": false,
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    }
+  }
+}
