@@ -12,7 +12,7 @@ describe("database migrations", () => {
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer("postgres:17.7-alpine").start();
+    container = await new PostgreSqlContainer("postgres:17.10-alpine3.23").start();
     sql = postgres(container.getConnectionUri(), { max: 1 });
     await migrateDatabase(container.getConnectionUri(), migrationsFolder);
   });

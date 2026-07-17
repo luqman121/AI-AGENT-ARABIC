@@ -5,6 +5,9 @@ import { workspaces } from "./tenancy.js";
 
 type AuditMetadata = Record<string, boolean | number | string | null>;
 
+// Both foreign keys use ON DELETE RESTRICT: audit rows are an append-only ledger,
+// so a workspace or user with audit history cannot be hard-deleted by cascade.
+// Account/workspace removal in later milestones must anonymize or retain instead.
 export const auditLogs = pgTable(
   "audit_logs",
   {

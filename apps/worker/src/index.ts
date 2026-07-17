@@ -1,5 +1,6 @@
 import { createDatabaseClient } from "@wakil/db";
 import { Redis } from "ioredis";
+import { pathToFileURL } from "node:url";
 import pino from "pino";
 
 import { readWorkerEnv } from "./env.js";
@@ -52,8 +53,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.name : "UnknownError";
-  process.stderr.write(`Worker startup failed: ${message}\n`);
-  process.exitCode = 1;
-});
+const entryPath = process.argv[1];
+if (entryPath && import.meta.url === pathToFileURL(entryPath).href) {
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.name : "UnknownError";
+    process.stderr.write(`Worker startup failed: ${message}\n`);
+    process.exitCode = 1;
+  });
+}
