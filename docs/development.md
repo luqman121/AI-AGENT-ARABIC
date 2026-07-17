@@ -34,14 +34,19 @@ Local endpoints:
 
 | Service       | URL / address                      |
 | ------------- | ---------------------------------- |
-| Web           | `http://127.0.0.1:3000`            |
-| Web liveness  | `http://127.0.0.1:3000/api/health` |
+| Web           | `http://localhost:3000`            |
+| Web liveness  | `http://localhost:3000/api/health` |
 | PostgreSQL    | `127.0.0.1:5432`                   |
 | Redis         | `127.0.0.1:6379`                   |
 | MinIO API     | `http://127.0.0.1:9000`            |
 | MinIO console | `http://127.0.0.1:9001`            |
 | Mailpit SMTP  | `127.0.0.1:1025`                   |
 | Mailpit UI    | `http://127.0.0.1:8025`            |
+
+Always open the web app at `localhost`, not `127.0.0.1`. Next.js's Turbopack dev server
+resolves its own request origin as `localhost` regardless of the Host header used to reach it, so
+`AUTH_URL` is set to `http://localhost:3000` and email magic-link sign-in only verifies correctly
+when the browser also uses that host.
 
 The MinIO bootstrap service creates `wakil-dev` as a private bucket. M0 does not include application
 storage access or public object URLs.

@@ -1,0 +1,188 @@
+/*
+ * Wakil design tokens — the single source of styling truth (docs/design-system.md).
+ * Screens and components consume semantic tokens only; raw values live here once.
+ */
+:root {
+  /* Primitive: neutral surfaces (dark, violet-cast) */
+  --wk-neutral-0: #0e0e15;
+  --wk-neutral-1: #15151e;
+  --wk-neutral-2: #1c1c27;
+  --wk-neutral-3: #242431;
+  --wk-neutral-4: #2c2c3b;
+  --wk-neutral-5: #3b3b4e;
+  --wk-neutral-6: #6e6e84;
+  --wk-white: #f2f2f7;
+  --wk-gray-300: #b4b4c4;
+  --wk-gray-500: #8a8a9e;
+
+  /* Primitive: accent and status */
+  --wk-violet-300: #b6a6ff;
+  --wk-violet-500: #7050ee;
+  --wk-violet-600: #6b4be0;
+  --wk-violet-700: #5b3fd1;
+  --wk-violet-900: #2a2148;
+  --wk-cyan-300: #67e8f9;
+  --wk-cyan-900: #123b44;
+  --wk-green-300: #6ee7a0;
+  --wk-green-900: #12351f;
+  --wk-amber-300: #fcd34d;
+  --wk-amber-900: #3b2e10;
+  --wk-red-300: #fca5a5;
+  --wk-red-500: #d02b31;
+  --wk-red-900: #3c1618;
+
+  /* Semantic: backgrounds */
+  --wk-bg-page: var(--wk-neutral-0);
+  --wk-bg-raised: var(--wk-neutral-1);
+  --wk-bg-card: var(--wk-neutral-2);
+  --wk-bg-overlay: var(--wk-neutral-3);
+  --wk-bg-accent: var(--wk-violet-500);
+  --wk-bg-accent-hover: var(--wk-violet-600);
+  --wk-bg-accent-pressed: var(--wk-violet-700);
+  --wk-bg-accent-subtle: var(--wk-violet-900);
+  --wk-bg-selected: var(--wk-violet-900);
+  --wk-bg-input: var(--wk-neutral-1);
+  --wk-bg-secondary-action: var(--wk-neutral-3);
+  --wk-bg-disabled: var(--wk-neutral-5);
+  --wk-bg-danger: var(--wk-red-500);
+  --wk-bg-danger-subtle: var(--wk-red-900);
+  --wk-bg-info-subtle: var(--wk-cyan-900);
+  --wk-bg-success-subtle: var(--wk-green-900);
+  --wk-bg-warning-subtle: var(--wk-amber-900);
+  --wk-bg-scrim: rgb(8 8 12 / 0.6);
+
+  /* Semantic: text */
+  --wk-text-primary: var(--wk-white);
+  --wk-text-secondary: var(--wk-gray-300);
+  --wk-text-tertiary: var(--wk-gray-500);
+  --wk-text-accent: var(--wk-violet-300);
+  --wk-text-info: var(--wk-cyan-300);
+  --wk-text-success: var(--wk-green-300);
+  --wk-text-warning: var(--wk-amber-300);
+  --wk-text-danger: var(--wk-red-300);
+  --wk-text-on-accent: #ffffff;
+  --wk-text-disabled: var(--wk-gray-500);
+
+  /* Semantic: borders and focus */
+  --wk-border-subtle: var(--wk-neutral-4);
+  --wk-border-strong: var(--wk-neutral-5);
+  --wk-border-input: var(--wk-neutral-6);
+  --wk-focus-ring: var(--wk-violet-300);
+
+  /* Typography */
+  --wk-font-sans: "Cairo", system-ui, sans-serif;
+  --wk-font-mono: ui-monospace, "Cascadia Mono", "Courier New", monospace;
+
+  /* Radius */
+  --wk-radius-sm: 6px;
+  --wk-radius-md: 8px;
+  --wk-radius-full: 9999px;
+
+  /* Elevation shadows (paired with surfaces via utility classes below) */
+  --wk-shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
+  --wk-shadow-2: 0 8px 24px rgb(0 0 0 / 0.45);
+
+  /* Z-index scale — the only allowed stacking values */
+  --wk-z-nav: 20;
+  --wk-z-banner: 30;
+  --wk-z-overlay: 40;
+  --wk-z-toast: 50;
+
+  /* Motion */
+  --wk-motion-fast: 150ms;
+  --wk-motion-base: 200ms;
+  --wk-motion-slow: 250ms;
+  --wk-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --wk-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Elevation composites ship as classes, not variables (design-system §3). */
+.wk-elevate-0 {
+  background-color: var(--wk-bg-raised);
+  border: 1px solid var(--wk-border-subtle);
+}
+
+.wk-elevate-1 {
+  background-color: var(--wk-bg-card);
+  border: 1px solid var(--wk-border-subtle);
+  box-shadow: var(--wk-shadow-1);
+}
+
+.wk-elevate-2 {
+  background-color: var(--wk-bg-overlay);
+  border: 1px solid var(--wk-border-strong);
+  box-shadow: var(--wk-shadow-2);
+}
+
+/* Visible focus — never removed. Ring offset must land on a non-accent background. */
+.wk-focus-ring {
+  outline: none;
+}
+
+.wk-focus-ring:focus-visible {
+  outline: 2px solid var(--wk-focus-ring);
+  outline-offset: 2px;
+}
+
+/* LTR isolation for code, URLs, IDs, emails inside RTL text. */
+.wk-ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+}
+
+/* Motion primitives: enter animations that explain state. */
+@keyframes wk-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.wk-dialog-in[data-state="open"] {
+  animation: wk-dialog-in var(--wk-motion-base) var(--wk-ease-enter);
+}
+
+@keyframes wk-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.wk-fade-in[data-state="open"] {
+  animation: wk-fade-in var(--wk-motion-base) var(--wk-ease-enter);
+}
+
+@keyframes wk-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wk-rise-in {
+  animation: wk-rise-in var(--wk-motion-base) var(--wk-ease-enter);
+}
+
+/* Reduced motion: state changes become instant product-wide. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

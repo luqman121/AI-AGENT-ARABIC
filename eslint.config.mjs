@@ -39,6 +39,14 @@ export default defineConfig(
       "no-console": "off",
     },
   },
+  {
+    files: ["apps/web/public/sw.js"],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+      },
+    },
+  },
   ...nextVitals.map(scopeToWeb),
   ...nextTypeScript.map(scopeToWeb),
 );

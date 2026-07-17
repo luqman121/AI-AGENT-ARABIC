@@ -1,10 +1,28 @@
 import { z } from "zod";
 
-const webEnvSchema = z.object({
-  DATABASE_URL: z.url(),
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  REDIS_URL: z.url(),
-});
+const webEnvSchema = z
+  .object({
+    AUTH_GOOGLE_ID: z.string().optional(),
+    AUTH_GOOGLE_SECRET: z.string().optional(),
+    AUTH_SECRET: z.string().min(32),
+    AUTH_URL: z.url(),
+    DATABASE_URL: z.url(),
+    EMAIL_FROM: z.string().min(3),
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    REDIS_URL: z.url(),
+    SMTP_HOST: z.string().min(1),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535),
+  })
+  .superRefine((value, ctx) => {
+    // Google OAuth is all-or-nothing: a half-configured pair must fail fast
+    // instead of silently changing the available sign-in methods.
+    const id = value.AUTH_GOOGLE_ID?.trim() ?? "";
+    const secret = value.AUTH_GOOGLE_SECRET?.trim() ?? "";
+    if ((id === "") !== (secret === "")) {
+      const missing = id === "" ? "AUTH_GOOGLE_ID" : "AUTH_GOOGLE_SECRET";
+      ctx.addIssue({ code: "custom", message: "paired value required", path: [missing] });
+    }
+  });
 
 export type WebEnv = z.infer<typeof webEnvSchema>;
 
@@ -27,4 +45,9 @@ export function readWebEnv(source: NodeJS.ProcessEnv): WebEnv {
 export function getWebEnv(): WebEnv {
   cachedEnv ??= readWebEnv(process.env);
   return cachedEnv;
+}
+
+/** Google sign-in is offered only when both values are configured. */
+export function isGoogleAuthEnabled(env: WebEnv): boolean {
+  return Boolean(env.AUTH_GOOGLE_ID?.trim()) && Boolean(env.AUTH_GOOGLE_SECRET?.trim());
 }

@@ -1,0 +1,90 @@
+@import "tailwindcss";
+@import "@wakil/ui/styles/tokens.css";
+
+@source "../../../packages/ui/src";
+
+/*
+ * Cairo, self-hosted variable WOFF2 (SIL OFL, see public/fonts/OFL.txt).
+ * No runtime font requests leave the origin.
+ */
+@font-face {
+  font-family: "Cairo";
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+  src: url("/fonts/cairo-arabic.woff2") format("woff2");
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E,
+    U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+
+@font-face {
+  font-family: "Cairo";
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+  src: url("/fonts/cairo-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Map semantic tokens into Tailwind utilities (bg-*, text-fg-*, border-line-*). */
+@theme inline {
+  --color-page: var(--wk-bg-page);
+  --color-raised: var(--wk-bg-raised);
+  --color-card: var(--wk-bg-card);
+  --color-overlay: var(--wk-bg-overlay);
+  --color-accent: var(--wk-bg-accent);
+  --color-accent-hover: var(--wk-bg-accent-hover);
+  --color-accent-pressed: var(--wk-bg-accent-pressed);
+  --color-accent-subtle: var(--wk-bg-accent-subtle);
+  --color-selected: var(--wk-bg-selected);
+  --color-input: var(--wk-bg-input);
+  --color-secondary-action: var(--wk-bg-secondary-action);
+  --color-disabled: var(--wk-bg-disabled);
+  --color-danger: var(--wk-bg-danger);
+  --color-danger-subtle: var(--wk-bg-danger-subtle);
+  --color-info-subtle: var(--wk-bg-info-subtle);
+  --color-success-subtle: var(--wk-bg-success-subtle);
+  --color-warning-subtle: var(--wk-bg-warning-subtle);
+  --color-fg: var(--wk-text-primary);
+  --color-fg-2: var(--wk-text-secondary);
+  --color-fg-3: var(--wk-text-tertiary);
+  --color-fg-accent: var(--wk-text-accent);
+  --color-fg-info: var(--wk-text-info);
+  --color-fg-success: var(--wk-text-success);
+  --color-fg-warning: var(--wk-text-warning);
+  --color-fg-danger: var(--wk-text-danger);
+  --color-fg-on-accent: var(--wk-text-on-accent);
+  --color-fg-disabled: var(--wk-text-disabled);
+  --color-line: var(--wk-border-subtle);
+  --color-line-strong: var(--wk-border-strong);
+  --color-line-input: var(--wk-border-input);
+  --color-focus: var(--wk-focus-ring);
+  --font-sans: var(--wk-font-sans);
+  --font-mono: var(--wk-font-mono);
+  --radius-sm: var(--wk-radius-sm);
+  --radius-md: var(--wk-radius-md);
+}
+
+html {
+  background-color: var(--wk-bg-page);
+  color: var(--wk-text-primary);
+  font-family: var(--wk-font-sans);
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 700;
+}

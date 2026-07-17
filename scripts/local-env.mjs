@@ -9,7 +9,11 @@ const localEnvPath = resolve(rootDirectory, ".env.local");
 
 const localDefaults = () => ({
   AUTH_SECRET: randomBytes(32).toString("base64url"),
-  AUTH_URL: "http://127.0.0.1:3000",
+  // Next.js's Turbopack dev server always resolves its own request origin as
+  // "localhost", regardless of the Host header used to reach it. AUTH_URL
+  // must match that origin or magic-link callback verification silently
+  // fails (the generated link's host won't match the session it produces).
+  AUTH_URL: "http://localhost:3000",
   DATABASE_URL: "postgres://wakil:wakil_local_only@127.0.0.1:5432/wakil",
   EMAIL_FROM: "Wakil <no-reply@wakil.local>",
   LOG_LEVEL: "info",

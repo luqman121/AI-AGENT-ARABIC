@@ -17,8 +17,12 @@
     "format:check": "prettier --check .",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:a11y": "pnpm --filter @wakil/web test:a11y",
+    "test:e2e": "pnpm --filter @wakil/web test:e2e",
+    "test:e2e:visual": "pnpm --filter @wakil/web test:e2e:visual",
     "test:integration": "turbo run test:integration",
     "test:integration:migrations": "pnpm --filter @wakil/db test:integration:migrations",
+    "test:pwa": "pnpm --filter @wakil/web test:pwa",
     "test:smoke": "node scripts/smoke.mjs",
     "typecheck": "turbo run typecheck"
   },

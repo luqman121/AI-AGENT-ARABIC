@@ -7,6 +7,7 @@ export default defineConfig({
       reporter: ["text", "json-summary"],
     },
     environment: "node",
-    include: ["app/**/*.test.ts", "src/**/*.test.ts"],
+    include: ["app/**/*.test.ts", "src/**/*.test.ts", "tests/**/*.test.ts"],
+    testTimeout: 20_000,
   },
 });
