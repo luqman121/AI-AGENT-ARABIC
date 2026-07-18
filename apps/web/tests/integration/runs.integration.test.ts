@@ -2,7 +2,7 @@ import { conversationMessages, conversations, projects, runEvents, runs } from "
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { startRun } from "../../src/server/features/runs/mutations";
+import { cancelRun, startRun } from "../../src/server/features/runs/mutations";
 import {
   getLatestRun,
   getRunEventsAfter,
@@ -204,5 +204,95 @@ describe.sequential("run services", () => {
 
     expect(result).toMatchObject({ code: "PROJECT_ARCHIVED", ok: false });
     expect(enqueueRun).not.toHaveBeenCalled();
+  });
+
+  it("allows only the owning tenant to request cancellation of an active run", async () => {
+    const projectId = await createProject(owner, "تقرير المبيعات");
+    const enqueueRun = vi.fn(async () => undefined);
+    const started = await startRun(
+      { db: harness.db, enqueueRun, redis: harness.redis },
+      owner,
+      { idempotencyKey: key("cancel-start"), projectId },
+    );
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+
+    await harness.db
+      .update(runs)
+      .set({ startedAt: new Date(), status: "running" })
+      .where(eq(runs.id, started.data.runId));
+
+    const outsiderResult = await cancelRun(
+      { db: harness.db, enqueueRun, redis: harness.redis },
+      outsider,
+      {
+        idempotencyKey: key("cancel-outsider"),
+        projectId,
+        runId: started.data.runId,
+      },
+    );
+    expect(outsiderResult).toMatchObject({ code: "NOT_FOUND", ok: false });
+
+    const input = {
+      idempotencyKey: key("cancel-owner"),
+      projectId,
+      runId: started.data.runId,
+    };
+    const first = await cancelRun(
+      { db: harness.db, enqueueRun, redis: harness.redis },
+      owner,
+      input,
+    );
+    const replay = await cancelRun(
+      { db: harness.db, enqueueRun, redis: harness.redis },
+      owner,
+      input,
+    );
+
+    expect(first).toEqual({ data: { runId: started.data.runId }, ok: true });
+    expect(replay).toEqual(first);
+    const row = (
+      await harness.db
+        .select({ cancelRequestedAt: runs.cancelRequestedAt })
+        .from(runs)
+        .where(eq(runs.id, started.data.runId))
+    )[0];
+    expect(row?.cancelRequestedAt).toBeInstanceOf(Date);
+  });
+
+  it("treats cancellation of a terminal run as an idempotent no-op", async () => {
+    const projectId = await createProject(owner, "عرض مكتمل");
+    const enqueueRun = vi.fn(async () => undefined);
+    const started = await startRun(
+      { db: harness.db, enqueueRun, redis: harness.redis },
+      owner,
+      { idempotencyKey: key("terminal-start"), projectId },
+    );
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+
+    await harness.db
+      .update(runs)
+      .set({ finishedAt: new Date(), status: "succeeded" })
+      .where(eq(runs.id, started.data.runId));
+
+    const result = await cancelRun(
+      { db: harness.db, enqueueRun, redis: harness.redis },
+      owner,
+      {
+        idempotencyKey: key("terminal-cancel"),
+        projectId,
+        runId: started.data.runId,
+      },
+    );
+
+    expect(result).toEqual({ data: { runId: started.data.runId }, ok: true });
+    const row = (
+      await harness.db
+        .select({ cancelRequestedAt: runs.cancelRequestedAt })
+        .from(runs)
+        .where(eq(runs.id, started.data.runId))
+    )[0];
+    expect(row?.cancelRequestedAt).toBeNull();
   });
 });

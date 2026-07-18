@@ -7,6 +7,7 @@ export const RATE_LIMITS = {
   "project.archive": { limit: 15, windowSeconds: 60 },
   "project.create": { limit: 10, windowSeconds: 60 },
   "project.rename": { limit: 15, windowSeconds: 60 },
+  "run.cancel": { limit: 20, windowSeconds: 60 },
   "run.start": { limit: 20, windowSeconds: 60 },
 } as const;
 

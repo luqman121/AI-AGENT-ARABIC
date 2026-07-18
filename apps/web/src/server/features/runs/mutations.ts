@@ -1,5 +1,6 @@
 import { conversations, runEvents, runs } from "@wakil/db/schema";
 import {
+  cancelRunInputSchema,
   failure,
   startRunInputSchema,
   success,
@@ -7,7 +8,7 @@ import {
   type ActionResult,
   type RunJobData,
 } from "@wakil/shared";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Redis } from "ioredis";
 import { z } from "zod";
 
@@ -159,6 +160,85 @@ export async function startRun(
   } catch (error) {
     if (error instanceof ServiceFailure) return error.result;
     if (isActiveRunConflict(error)) return failure("RUN_ALREADY_ACTIVE");
+    return failure("INTERNAL_ERROR");
+  }
+}
+
+export async function cancelRun(
+  deps: RunMutationDeps,
+  ctx: ServiceContext,
+  rawInput: unknown,
+): Promise<ActionResult<{ runId: string }>> {
+  const parsed = cancelRunInputSchema.safeParse(rawInput);
+  if (!parsed.success) return failure("VALIDATION_FAILED", zodFieldErrors(parsed.error));
+  const input = parsed.data;
+
+  const limited = await enforceRateLimit(deps.redis, ctx.userId, "run.cancel");
+  if (limited) return limited;
+
+  const scope = {
+    key: input.idempotencyKey,
+    operation: "run.cancel",
+    requestHash: hashRequest("run.cancel", {
+      projectId: input.projectId,
+      runId: input.runId,
+    }),
+    userId: ctx.userId,
+    workspaceId: ctx.workspaceId,
+  };
+
+  try {
+    return await deps.db.transaction(async (tx) => {
+      const claim = await beginIdempotent(tx, scope);
+      if (claim.kind === "conflict") {
+        throw new ServiceFailure(failure("IDEMPOTENCY_CONFLICT"));
+      }
+      if (claim.kind === "replay") return success({ runId: input.runId });
+
+      const run = (
+        await tx
+          .select({ id: runs.id, status: runs.status })
+          .from(runs)
+          .where(
+            and(
+              eq(runs.id, input.runId),
+              eq(runs.projectId, input.projectId),
+              eq(runs.workspaceId, ctx.workspaceId),
+            ),
+          )
+          .limit(1)
+      )[0];
+      if (!run) throw new ServiceFailure(failure("NOT_FOUND"));
+
+      if (run.status === "queued" || run.status === "running") {
+        const updated = await tx
+          .update(runs)
+          .set({ cancelRequestedAt: new Date() })
+          .where(
+            and(
+              eq(runs.id, run.id),
+              eq(runs.workspaceId, ctx.workspaceId),
+              inArray(runs.status, ["queued", "running"]),
+            ),
+          )
+          .returning({ id: runs.id });
+
+        if (updated.length > 0) {
+          await writeAuditLog(tx, {
+            action: "run.cancelled",
+            actorUserId: ctx.userId,
+            targetId: run.id,
+            targetType: "run",
+            workspaceId: ctx.workspaceId,
+          });
+        }
+      }
+
+      await completeIdempotent(tx, scope, { runId: run.id });
+      return success({ runId: run.id });
+    });
+  } catch (error) {
+    if (error instanceof ServiceFailure) return error.result;
     return failure("INTERNAL_ERROR");
   }
 }
