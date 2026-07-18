@@ -13,8 +13,10 @@ export type AuditEntry = {
     | "project.renamed"
     | "project.archived"
     | "requirement.appended"
+    | "run.cancelled"
+    | "run.started"
     | "workspace.provisioned";
-  targetType: "project" | "conversation" | "workspace";
+  targetType: "project" | "conversation" | "run" | "workspace";
   targetId: string | null;
   metadata?: SafeAuditMetadata;
 };

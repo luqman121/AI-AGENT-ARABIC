@@ -1,12 +1,13 @@
 import { failure, type ActionFailure } from "@wakil/shared";
 import type { Redis } from "ioredis";
 
-/** Fixed-window per-user limits for M1 mutations. */
+/** Fixed-window per-user limits for authenticated product mutations. */
 export const RATE_LIMITS = {
   "conversation.append": { limit: 30, windowSeconds: 60 },
   "project.archive": { limit: 15, windowSeconds: 60 },
   "project.create": { limit: 10, windowSeconds: 60 },
   "project.rename": { limit: 15, windowSeconds: 60 },
+  "run.start": { limit: 20, windowSeconds: 60 },
 } as const;
 
 export type RateLimitedOperation = keyof typeof RATE_LIMITS;
