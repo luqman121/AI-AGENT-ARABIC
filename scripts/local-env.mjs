@@ -26,7 +26,7 @@ const localDefaults = () => ({
   S3_BUCKET: "wakil-dev",
   S3_ENDPOINT: "http://127.0.0.1:9000",
   S3_FORCE_PATH_STYLE: "true",
-  S3_REGION: "us-east-1",
+  S3_REGION: "auto",
   S3_SECRET_ACCESS_KEY: "wakil_local_secret_key",
   SMTP_HOST: "127.0.0.1",
   SMTP_PORT: "1025",

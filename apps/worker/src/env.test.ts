@@ -12,8 +12,9 @@ const modelEnv = {
 const storageEnv = {
   S3_ACCESS_KEY_ID: "test-access",
   S3_BUCKET: "test-bucket",
+  S3_ENDPOINT: "http://127.0.0.1:9000",
   S3_FORCE_PATH_STYLE: "true",
-  S3_REGION: "us-east-1",
+  S3_REGION: "auto",
   S3_SECRET_ACCESS_KEY: "test-secret",
 };
 
@@ -52,5 +53,56 @@ describe("readWorkerEnv", () => {
     } catch (error) {
       expect(String(error)).not.toContain(secretValue);
     }
+  });
+
+  it.each([
+    "S3_ACCESS_KEY_ID",
+    "S3_BUCKET",
+    "S3_ENDPOINT",
+    "S3_FORCE_PATH_STYLE",
+    "S3_REGION",
+    "S3_SECRET_ACCESS_KEY",
+  ] as const)("requires %s", (name) => {
+    expect(() =>
+      readWorkerEnv({
+        DATABASE_URL: "postgres://wakil:local@127.0.0.1:5432/wakil",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        ...modelEnv,
+        ...storageEnv,
+        [name]: undefined,
+      }),
+    ).toThrowError(name);
+  });
+
+  it("accepts Cloudflare R2 and rejects non-R2 endpoints", () => {
+    const result = readWorkerEnv({
+      DATABASE_URL: "postgres://wakil:local@127.0.0.1:5432/wakil",
+      REDIS_URL: "redis://127.0.0.1:6379",
+      ...modelEnv,
+      ...storageEnv,
+      S3_ENDPOINT: "https://0123456789abcdef.r2.cloudflarestorage.com",
+      S3_REGION: "auto",
+    });
+    expect(result.S3_REGION).toBe("auto");
+
+    expect(() =>
+      readWorkerEnv({
+        DATABASE_URL: "postgres://wakil:local@127.0.0.1:5432/wakil",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        ...modelEnv,
+        ...storageEnv,
+        S3_ENDPOINT: "https://storage.example.com",
+      }),
+    ).toThrowError(/S3_ENDPOINT/);
+
+    expect(() =>
+      readWorkerEnv({
+        DATABASE_URL: "postgres://wakil:local@127.0.0.1:5432/wakil",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        ...modelEnv,
+        ...storageEnv,
+        S3_FORCE_PATH_STYLE: "false",
+      }),
+    ).toThrowError(/S3_FORCE_PATH_STYLE/);
   });
 });

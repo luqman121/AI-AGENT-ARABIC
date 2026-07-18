@@ -7,7 +7,7 @@ export function createArtifactStore(env: WorkerEnv): S3ArtifactStore {
   return new S3ArtifactStore({
     accessKeyId: env.S3_ACCESS_KEY_ID,
     bucket: env.S3_BUCKET,
-    ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT } : {}),
+    endpoint: env.S3_ENDPOINT,
     forcePathStyle: env.S3_FORCE_PATH_STYLE,
     region: env.S3_REGION,
     secretAccessKey: env.S3_SECRET_ACCESS_KEY,

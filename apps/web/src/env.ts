@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.url().optional());
+import { objectStorageEndpointKind } from "@wakil/artifacts";
 
 const webEnvSchema = z
   .object({
@@ -14,9 +14,9 @@ const webEnvSchema = z
     REDIS_URL: z.url(),
     S3_ACCESS_KEY_ID: z.string().min(1),
     S3_BUCKET: z.string().min(1),
-    S3_ENDPOINT: optionalUrl,
-    S3_FORCE_PATH_STYLE: z.enum(["true", "false"]).transform((value) => value === "true"),
-    S3_REGION: z.string().min(1),
+    S3_ENDPOINT: z.url(),
+    S3_FORCE_PATH_STYLE: z.literal("true").transform(() => true),
+    S3_REGION: z.literal("auto"),
     S3_SECRET_ACCESS_KEY: z.string().min(1),
     SMTP_HOST: z.string().min(1),
     SMTP_PORT: z.coerce.number().int().min(1).max(65535),
@@ -29,6 +29,15 @@ const webEnvSchema = z
     if ((id === "") !== (secret === "")) {
       const missing = id === "" ? "AUTH_GOOGLE_ID" : "AUTH_GOOGLE_SECRET";
       ctx.addIssue({ code: "custom", message: "paired value required", path: [missing] });
+    }
+
+    const storageKind = objectStorageEndpointKind(value.S3_ENDPOINT);
+    if (!storageKind) {
+      ctx.addIssue({
+        code: "custom",
+        message: "R2 or loopback endpoint required",
+        path: ["S3_ENDPOINT"],
+      });
     }
   });
 

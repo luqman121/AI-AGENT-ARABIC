@@ -47,8 +47,49 @@ own request origin as `localhost` regardless of the Host header used to reach it
 set to `http://localhost:3000` and email magic-link sign-in only verifies correctly when the browser
 also uses that host.
 
-The MinIO bootstrap service creates `wakil-dev` as a private bucket. M0 does not include application
-storage access or public object URLs.
+The MinIO bootstrap service creates `wakil-dev` as a private bucket. It remains the local
+S3-compatibility target for artifact integration and browser tests; production object storage uses
+Cloudflare R2.
+
+## Cloudflare R2 storage
+
+Production artifacts use a private Cloudflare R2 bucket through R2's S3-compatible API. The AWS SDK
+v3 package remains the protocol client; Wakil does not depend on AWS hosting, AWS regions, public
+bucket ACLs, or permanent object URLs.
+
+Configure these server-only values in the deployment environment (and in the gitignored `.env.local`
+only when intentionally testing R2):
+
+```env
+# Cloudflare R2 Storage
+S3_ENDPOINT=https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
+S3_REGION=auto
+S3_BUCKET=<R2_BUCKET_NAME>
+S3_ACCESS_KEY_ID=<R2_ACCESS_KEY_ID>
+S3_SECRET_ACCESS_KEY=<R2_SECRET_ACCESS_KEY>
+S3_FORCE_PATH_STYLE=true
+```
+
+The endpoint must be the account-level R2 S3 API endpoint, not another provider endpoint or a
+custom/public asset domain. Preview and ZIP links are signed against `S3_ENDPOINT` for five minutes
+after tenant authorization; signed URLs are never stored in PostgreSQL.
+
+Create an R2 API token scoped only to the artifact bucket with object read/write permissions. Keep
+the bucket private and disable both the `r2.dev` public URL and custom public domains. After
+configuration, verify endpoint, credentials, bucket access, metadata, private access, signed
+downloads, and deletion with:
+
+```bash
+pnpm storage:health
+```
+
+The command uploads one small temporary object, verifies its size, media type, disposition, SHA256
+metadata, direct read, unsigned denial, five-minute signed download, and exact downloaded bytes,
+then deletes the object and confirms deletion. After any intermediate failure, it deletes the
+temporary object and verifies its absence; a cleanup failure fails the command explicitly. It also
+works with loopback MinIO, prints only per-step pass/fail status, and never prints credential
+values, object keys, endpoint URLs, or provider error messages. Cloudflare custom domains cannot be
+used for S3 presigned URLs, so private preview/download signing always uses the R2 S3 API domain.
 
 ## Model provider configuration
 

@@ -4,6 +4,21 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Cloudflare R2 storage migration
+
+- Switched production artifact configuration from Amazon S3 endpoints to Cloudflare R2's
+  S3-compatible API while retaining AWS SDK v3, the existing storage abstraction, object keys, and
+  application APIs.
+- Kept artifacts private and preserved exact upload content metadata plus tenant-authorized,
+  five-minute signed preview and ZIP download URLs.
+- Added fail-fast R2 endpoint, `auto` region, and path-style validation while retaining loopback
+  MinIO for local development and tests.
+- Added focused R2 signing/upload tests and a cleanup-safe `pnpm storage:health` lifecycle check for
+  upload, metadata, read, private access, signed download, deletion, and cleanup. Corrected Git and
+  Prettier ignores so artifact package source is tracked and formatted normally.
+- Verified the complete temporary-object lifecycle against the configured private Cloudflare R2
+  bucket, including five-minute presigning, unsigned-access denial, deletion, and confirmed cleanup.
+
 ### M2 Layer C — Sandbox and Static Website Artifacts
 
 Added a review-before-execution slice that generates, validates, previews, and downloads one

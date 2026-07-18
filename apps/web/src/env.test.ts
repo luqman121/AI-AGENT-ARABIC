@@ -11,8 +11,9 @@ const validEnv = {
   REDIS_URL: "redis://127.0.0.1:6379",
   S3_ACCESS_KEY_ID: "test-access",
   S3_BUCKET: "test-bucket",
+  S3_ENDPOINT: "http://127.0.0.1:9000",
   S3_FORCE_PATH_STYLE: "true",
-  S3_REGION: "us-east-1",
+  S3_REGION: "auto",
   S3_SECRET_ACCESS_KEY: "test-secret",
   SMTP_HOST: "127.0.0.1",
   SMTP_PORT: "1025",
@@ -54,6 +55,48 @@ describe("readWebEnv", () => {
 
   it("requires a strong auth secret", () => {
     expect(() => readWebEnv({ ...validEnv, AUTH_SECRET: "short" })).toThrowError(/AUTH_SECRET/);
+  });
+
+  it.each([
+    "S3_ACCESS_KEY_ID",
+    "S3_BUCKET",
+    "S3_ENDPOINT",
+    "S3_FORCE_PATH_STYLE",
+    "S3_REGION",
+    "S3_SECRET_ACCESS_KEY",
+  ] as const)("requires %s", (name) => {
+    expect(() => readWebEnv({ ...validEnv, [name]: undefined })).toThrowError(name);
+  });
+
+  it("accepts Cloudflare R2 configuration", () => {
+    const result = readWebEnv({
+      ...validEnv,
+      S3_ENDPOINT: "https://0123456789abcdef.r2.cloudflarestorage.com",
+      S3_FORCE_PATH_STYLE: "true",
+      S3_REGION: "auto",
+    });
+    expect(result.S3_REGION).toBe("auto");
+  });
+
+  it("rejects non-R2 endpoints and invalid signing settings", () => {
+    expect(() =>
+      readWebEnv({ ...validEnv, S3_ENDPOINT: "https://storage.example.com" }),
+    ).toThrowError(/S3_ENDPOINT/);
+    expect(() =>
+      readWebEnv({
+        ...validEnv,
+        S3_ENDPOINT: "https://0123456789abcdef.r2.cloudflarestorage.com",
+        S3_REGION: "us-east-1",
+      }),
+    ).toThrowError(/S3_REGION/);
+    expect(() =>
+      readWebEnv({
+        ...validEnv,
+        S3_ENDPOINT: "https://0123456789abcdef.r2.cloudflarestorage.com",
+        S3_FORCE_PATH_STYLE: "false",
+        S3_REGION: "auto",
+      }),
+    ).toThrowError(/S3_FORCE_PATH_STYLE/);
   });
 });
 

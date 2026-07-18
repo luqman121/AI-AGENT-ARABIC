@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo run lint",
+    "storage:health": "pnpm --filter @wakil/artifacts build && pnpm --filter @wakil/artifacts storage:health",
     "test": "turbo run test",
     "test:a11y": "pnpm --filter @wakil/web test:a11y",
     "test:e2e": "pnpm --filter @wakil/web test:e2e",

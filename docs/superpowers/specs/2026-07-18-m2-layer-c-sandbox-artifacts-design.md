@@ -21,10 +21,10 @@ publishing, custom domains, and external messaging remain later work.
    reviewed plan. Raw generated JSON is not presented as progress.
 5. The worker creates a private, ephemeral Daytona sandbox with outbound networking blocked, writes
    the generated HTML and a trusted validator there, and executes only fixed validation commands.
-6. After validation, the worker uploads the HTML preview and ZIP to private S3-compatible storage,
-   persists artifact metadata, and finishes the run transactionally.
-7. The tenant-authorized preview page issues short-lived signed URLs. Preview HTML runs on the S3
-   origin in a sandboxed iframe; the control-plane origin never executes generated code.
+6. After validation, the worker uploads the HTML preview and ZIP to private Cloudflare R2 through
+   its S3-compatible API, persists artifact metadata, and finishes the run transactionally.
+7. The tenant-authorized preview page issues short-lived signed URLs. Preview HTML runs on the R2 S3
+   API origin in a sandboxed iframe; the control-plane origin never executes generated code.
 
 ## 3. Run and persistence model
 
@@ -70,14 +70,14 @@ failures map to stable redacted error codes.
 
 ## 6. Artifact storage and access
 
-`packages/artifacts` owns S3-compatible upload and signing behavior because both worker and web need
-the same private-object boundary. Objects use unpredictable tenant/run/artifact UUID keys and never
-become public. Uploads set exact content type, content disposition, checksum metadata, and bounded
-content length.
+`packages/artifacts` owns Cloudflare R2 upload and signing behavior through AWS SDK v3 because both
+worker and web need the same private S3-compatible object boundary. Objects use unpredictable
+tenant/run/artifact UUID keys and never become public. Uploads set exact content type, content
+disposition, checksum metadata, and bounded content length.
 
 The preview page first verifies workspace membership and project/artifact ownership, then signs the
 preview and download objects for at most five minutes. Signed URLs are never stored in PostgreSQL,
-logs, events, or client persistence. The iframe uses a separate S3 origin and
+logs, events, or client persistence. The iframe uses a separate R2 S3 API origin and
 `sandbox="allow-scripts"` without `allow-same-origin`.
 
 ## 7. Limits and failures

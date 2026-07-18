@@ -27,6 +27,7 @@ function requireLocalEnv(
     | "REDIS_URL"
     | "S3_ACCESS_KEY_ID"
     | "S3_BUCKET"
+    | "S3_ENDPOINT"
     | "S3_REGION"
     | "S3_SECRET_ACCESS_KEY",
 ): string {
@@ -115,7 +116,7 @@ async function seedPrivateArtifact(projectId: string): Promise<void> {
     const store = new S3ArtifactStore({
       accessKeyId: requireLocalEnv("S3_ACCESS_KEY_ID"),
       bucket: requireLocalEnv("S3_BUCKET"),
-      ...(localEnv["S3_ENDPOINT"] ? { endpoint: localEnv["S3_ENDPOINT"] } : {}),
+      endpoint: requireLocalEnv("S3_ENDPOINT"),
       forcePathStyle: localEnv["S3_FORCE_PATH_STYLE"] === "true",
       region: requireLocalEnv("S3_REGION"),
       secretAccessKey: requireLocalEnv("S3_SECRET_ACCESS_KEY"),

@@ -1,5 +1,29 @@
 # Wakil M0-M2 Implementation Plan
 
+## Cloudflare R2 storage migration (2026-07-18)
+
+- **Scope:** migrate the production object-storage configuration from Amazon S3 to Cloudflare R2
+  while preserving the existing S3-compatible artifact API, private-object policy, PostgreSQL
+  object-key metadata, and five-minute signed preview/download URLs.
+- **Files:** update the shared artifact client and tests, web/worker environment validation,
+  `.env.example`, `.gitignore`, Turbo environment pass-through, root/package scripts, development
+  documentation, and this changelog. No database migration or application API change is required.
+- **Assumptions:** AWS SDK v3 remains the protocol client because R2 implements the S3 API. Local
+  development and browser tests continue using private MinIO on loopback. Wakil artifacts remain
+  private and have no configured permanent public URL.
+- **Verification:** focused artifact and environment tests must prove R2 endpoint signing and reject
+  non-R2 remote endpoints; a cleanup-safe functional health command must validate the complete
+  temporary object lifecycle; formatting, lint, typecheck, unit tests, and build must pass.
+- **Acceptance:** uploads retain content type, disposition, length, and checksum metadata; downloads
+  continue through short-lived signed URLs on the R2 S3 API domain; database rows continue storing
+  object keys rather than URLs; no credentials or permanent public artifact URLs reach the browser.
+
+**Status:** complete. Focused storage and environment tests, the complete local MinIO lifecycle
+check, formatting, lint, typecheck, unit tests, and the production build pass. A live private
+Cloudflare R2 lifecycle check also passed bucket connectivity, temporary upload, metadata and
+checksum verification, direct read, unsigned-access denial, five-minute signed download, deletion,
+and confirmed cleanup without exposing credentials or object keys.
+
 ## M2 Layer C completion evidence (2026-07-18)
 
 The implemented slice follows the approved scope, security boundaries, limits, and acceptance

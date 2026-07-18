@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { objectStorageEndpointKind } from "@wakil/artifacts";
 import { MODEL_PROVIDERS } from "@wakil/model-router";
 
 const optionalString = z.preprocess(
@@ -62,9 +63,9 @@ const workerEnvSchema = z
     ARTIFACT_MAX_ZIP_BYTES: z.coerce.number().int().min(1_000).max(2_000_000).default(1_000_000),
     S3_ACCESS_KEY_ID: z.string().min(1),
     S3_BUCKET: z.string().min(1),
-    S3_ENDPOINT: optionalUrl,
-    S3_FORCE_PATH_STYLE: z.enum(["true", "false"]).transform((value) => value === "true"),
-    S3_REGION: z.string().min(1),
+    S3_ENDPOINT: z.url(),
+    S3_FORCE_PATH_STYLE: z.literal("true").transform(() => true),
+    S3_REGION: z.literal("auto"),
     S3_SECRET_ACCESS_KEY: z.string().min(1),
     REDIS_URL: z.url(),
   })
@@ -74,6 +75,15 @@ const workerEnvSchema = z
     const modelName = `${prefix}_MODEL` as keyof typeof env;
     if (!env[keyName]) ctx.addIssue({ code: "custom", path: [keyName], message: "Required" });
     if (!env[modelName]) ctx.addIssue({ code: "custom", path: [modelName], message: "Required" });
+
+    const storageKind = objectStorageEndpointKind(env.S3_ENDPOINT);
+    if (!storageKind) {
+      ctx.addIssue({
+        code: "custom",
+        message: "R2 or loopback endpoint required",
+        path: ["S3_ENDPOINT"],
+      });
+    }
   });
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;

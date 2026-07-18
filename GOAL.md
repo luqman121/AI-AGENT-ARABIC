@@ -41,8 +41,8 @@ complete. Layer C was approved by the user on 2026-07-18 and is specified in:
 - `docs/superpowers/specs/2026-07-18-m2-layer-c-sandbox-artifacts-design.md`
 
 **Status:** M2 Layer C is implemented and locally verified with Daytona as the sandbox provider and
-private S3-compatible artifact storage. Publishing and non-website artifact types remain out of
-scope.
+private Cloudflare R2 artifact storage through its S3-compatible API. Publishing and non-website
+artifact types remain out of scope.
 
 ### M0 — Foundation
 
@@ -88,7 +88,7 @@ scope.
 - A separate, explicitly started execution run linked to the reviewed Layer B plan.
 - Bounded generation of one self-contained static Arabic website.
 - Private, ephemeral Daytona execution with outbound networking blocked.
-- Sandbox validation before private S3-compatible preview and ZIP upload.
+- Sandbox validation before private Cloudflare R2 preview and ZIP upload.
 - Tenant-authorized short-lived preview/download URLs and mobile execution states.
 
 Do not implement PDF/spreadsheet/presentation/image generation, billing checkout, custom domains,
@@ -101,7 +101,7 @@ external messaging, or production publishing in this milestone.
 - PostgreSQL + Drizzle as durable source of truth.
 - Redis + BullMQ for future long-running jobs.
 - Persisted `run_events` + SSE with `Last-Event-ID` replay in M2.
-- Private S3-compatible storage with signed links.
+- Private Cloudflare R2 storage through the S3-compatible API with signed links.
 - Separate worker and isolated external E2B/Daytona sandbox.
 - Provider and sandbox adapters; configurable model routing.
 - Built-in, reviewed, permission-scoped product skills.
