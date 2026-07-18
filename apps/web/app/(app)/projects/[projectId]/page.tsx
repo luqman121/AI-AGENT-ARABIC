@@ -45,6 +45,7 @@ export default async function ProjectConversationPage({
         content: message.content,
         createdAtIso: message.createdAt.toISOString(),
         id: message.id,
+        role: message.role,
       }))}
       projectId={conversation.project.id}
       title={conversation.project.title}

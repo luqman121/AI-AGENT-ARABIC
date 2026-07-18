@@ -4,6 +4,33 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### M2 Layer B — Live Agent and Model Router
+
+Added one bounded, real model-backed Arabic planning turn without generated-code execution, sandbox
+access, artifacts, paid side effects, or publishing.
+
+- **Provider boundary:** added `packages/model-router` with normalized streaming adapters for
+  OpenRouter (primary), OpenAI Responses, Anthropic Messages, and Google GenerateContent. Provider
+  selection, model IDs, endpoints, and credentials are server-only configuration; cross-provider
+  fallback is never silent.
+- **Bounded agent:** added `packages/agent-core` and the versioned `planning.ar.v1` prompt/eval
+  suite in `packages/skills`, with cancellation, deadline, attempt, output-token, output-character,
+  delta-event, and spend limits plus schema validation for concise numbered Arabic plans.
+- **Durable execution:** the worker loads the tenant-scoped user request, persists each assistant
+  delta before publication, and transactionally saves exactly one final assistant message,
+  accounting fields, and terminal events. Retries cannot duplicate a terminal result.
+- **Schema and accounting:** added the committed `0002_mute_catseye.sql` migration for assistant
+  messages, tenant-preserving run/message references, provider attempts, prompt/completion tokens,
+  provider cost, model configuration key, prompt version, and live-agent event types.
+- **Truthful mobile UI:** conversation messages distinguish user and assistant roles; the run panel
+  renders persisted streamed text and explicit Arabic refusal, provider-failure, limit,
+  cancellation, reconnecting, and completed states at both required mobile viewports.
+- **Verification:** Node.js 22.23.1; formatting, lint, strict typecheck, package tests, 4/4
+  migration tests, 4 database integration tests, 3 worker integration tests, 25 web integration
+  tests, production build, 22/22 functional Playwright tests, and 22/22 visual Playwright tests
+  passed. Changed run screenshots at `390x844` and `430x932` were inspected. Provider contract tests
+  used a local HTTP/SSE server; no production provider request or credential was used.
+
 ### M2 Layer A — Run Backbone
 
 Added the durable, tenant-scoped execution backbone without model providers, generated code, sandbox

@@ -8,6 +8,7 @@ import {
 } from "@wakil/shared";
 import { Button, StatusBanner } from "@wakil/ui";
 import { Activity, Ban, Check, CircleCheck, CircleX, Clock3, type LucideIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { newIdempotencyKey } from "../../../../src/lib/idempotency-key";
@@ -39,6 +40,7 @@ export type RunPanelProps = {
 };
 
 export function RunPanel({ archived, initialEvents, initialRun, projectId }: RunPanelProps) {
+  const router = useRouter();
   const [run, setRun] = useState<RunPanelSummary | null>(initialRun);
   const [events, setEvents] = useState<RunEventPayload[]>(initialEvents);
   const [reconnecting, setReconnecting] = useState(false);
@@ -52,20 +54,30 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
   const isActive = run !== null && ACTIVE_STATUSES.has(run.status);
   const cancelRequested = Boolean(run?.cancelRequestedAtIso);
 
-  const applyEvent = useCallback((payload: RunEventPayload) => {
-    if (seenRef.current.has(payload.seq)) return;
-    seenRef.current.add(payload.seq);
-    setEvents((previous) => [...previous, payload].sort((left, right) => left.seq - right.seq));
+  const applyEvent = useCallback(
+    (payload: RunEventPayload) => {
+      if (seenRef.current.has(payload.seq)) return;
+      seenRef.current.add(payload.seq);
+      setEvents((previous) => [...previous, payload].sort((left, right) => left.seq - right.seq));
 
-    const statusByType: Partial<Record<RunEventPayload["type"], RunStatus>> = {
-      "run.cancelled": "cancelled",
-      "run.failed": "failed",
-      "run.started": "running",
-      "run.succeeded": "succeeded",
-    };
-    const nextStatus = statusByType[payload.type];
-    if (nextStatus) setRun((current) => (current ? { ...current, status: nextStatus } : current));
-  }, []);
+      const statusByType: Partial<Record<RunEventPayload["type"], RunStatus>> = {
+        "run.cancelled": "cancelled",
+        "run.failed": "failed",
+        "run.started": "running",
+        "run.succeeded": "succeeded",
+      };
+      const nextStatus = statusByType[payload.type];
+      if (nextStatus) {
+        setRun((current) =>
+          current
+            ? { ...current, status: nextStatus, errorCode: payload.errorCode ?? current.errorCode }
+            : current,
+        );
+      }
+      if (payload.type === "run.succeeded") router.refresh();
+    },
+    [router],
+  );
 
   useEffect(() => {
     if (!runId || !isActive) return;
@@ -114,7 +126,7 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
         setStartKey(newIdempotencyKey());
         setCancelKey(newIdempotencyKey());
       } catch {
-        setError("تعذّر بدء التشغيل. تحقق من الاتصال ثم أعد المحاولة.");
+        setError("تعذّر إعداد الخطة. تحقق من الاتصال ثم أعد المحاولة.");
       }
     });
   }
@@ -147,15 +159,25 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
 
   const status = run ? STATUS[run.status] : null;
   const StatusIcon = status?.icon;
+  const streamedText = events.map((event) => event.textDelta ?? "").join("");
+  const visibleEvents = events.filter((event) => event.type !== "assistant.delta");
+  const failureMessage =
+    run?.errorCode === "AGENT_REFUSED"
+      ? "تعذّر إعداد خطة مناسبة لهذا الطلب. عدّل الطلب ثم أعد المحاولة."
+      : run?.errorCode === "AGENT_LIMIT_EXCEEDED"
+        ? "توقف إعداد الخطة عند حدّ الاستخدام المسموح. اختصر الطلب ثم أعد المحاولة."
+        : run?.errorCode === "PROVIDER_RATE_LIMITED"
+          ? "الخدمة مشغولة الآن. انتظر قليلاً ثم أعد المحاولة."
+          : "تعذّر إعداد الخطة. يمكنك بدء تشغيل جديد.";
 
   return (
     <section aria-labelledby="run-panel-title" className="wk-elevate-1 mb-4 rounded-md p-4">
       <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
         <div>
           <h2 id="run-panel-title" className="text-base font-bold text-fg">
-            التشغيل التقني
+            إعداد خطة المشروع
           </h2>
-          <p className="mt-1 text-sm leading-6 text-fg-2">خطوات نظامية حقيقية تُحفظ أثناء العمل.</p>
+          <p className="mt-1 text-sm leading-6 text-fg-2">خطة عربية حقيقية تُحفظ أثناء وصولها.</p>
         </div>
         {status && StatusIcon ? (
           <span
@@ -167,9 +189,17 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
         ) : null}
       </div>
 
-      {events.length > 0 ? (
+      {streamedText && isActive ? (
+        <div aria-live="polite" className="my-4 rounded-md border border-line bg-surface-2 p-3">
+          <p className="whitespace-pre-wrap break-words text-sm leading-7 text-fg">
+            {streamedText}
+          </p>
+        </div>
+      ) : null}
+
+      {visibleEvents.length > 0 ? (
         <ol className="my-4 flex flex-col gap-3" aria-label="سجل خطوات التشغيل">
-          {events.map((event) => (
+          {visibleEvents.map((event) => (
             <li key={event.seq} className="flex items-start gap-3 text-sm leading-6 text-fg-2">
               <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-success-subtle text-fg-success">
                 <Check aria-hidden className="size-3.5" />
@@ -182,8 +212,7 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
         <p className="my-4 text-sm leading-6 text-fg-2">بانتظار أول تحديث محفوظ من العامل.</p>
       ) : (
         <p className="my-4 text-sm leading-6 text-fg-2">
-          ابدأ التشغيل لتنفيذ فحوصات النظام المسجلة. لا يتضمن هذا التشغيل إنشاء محتوى بالذكاء
-          الاصطناعي بعد.
+          ابدأ التشغيل ليعد وكيل خطة قصيرة قبل تنفيذ المشروع.
         </p>
       )}
 
@@ -201,7 +230,7 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
 
       {run?.status === "failed" ? (
         <StatusBanner className="mb-3" tone="danger">
-          تعذّر إكمال خطوات النظام. يمكنك بدء تشغيل جديد.
+          {failureMessage}
         </StatusBanner>
       ) : null}
 
@@ -223,7 +252,7 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
         </Button>
       ) : (
         <Button className="w-full" onClick={start} loading={pending}>
-          بدء التشغيل
+          إعداد الخطة
         </Button>
       )}
     </section>

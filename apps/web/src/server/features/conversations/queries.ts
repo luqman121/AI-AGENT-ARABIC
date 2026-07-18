@@ -6,7 +6,7 @@ import type { Database, ServiceContext } from "../types";
 
 export type ConversationMessageRecord = {
   id: string;
-  role: string;
+  role: "user" | "assistant";
   content: string;
   createdAt: Date;
 };
@@ -57,5 +57,12 @@ export async function getProjectConversation(
     )
     .orderBy(asc(conversationMessages.createdAt));
 
-  return { conversationId: conversation.id, messages, project };
+  return {
+    conversationId: conversation.id,
+    messages: messages.map((message) => ({
+      ...message,
+      role: message.role === "assistant" ? "assistant" : "user",
+    })),
+    project,
+  };
 }

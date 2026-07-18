@@ -102,12 +102,19 @@ export async function getRunEventsAfter(
     .orderBy(asc(runEvents.seq));
 
   return rows.map((row) => {
-    const data = (row.data ?? {}) as { stepIndex?: number; stepKey?: RunStepKey };
+    const data = (row.data ?? {}) as {
+      stepIndex?: number;
+      stepKey?: RunStepKey;
+      textDelta?: string;
+      errorCode?: string;
+    };
     return {
       createdAtIso: row.createdAt.toISOString(),
       seq: row.seq,
       ...(typeof data.stepIndex === "number" ? { stepIndex: data.stepIndex } : {}),
       ...(data.stepKey ? { stepKey: data.stepKey } : {}),
+      ...(data.textDelta ? { textDelta: data.textDelta } : {}),
+      ...(data.errorCode ? { errorCode: data.errorCode } : {}),
       type: row.type as RunEventType,
     };
   });

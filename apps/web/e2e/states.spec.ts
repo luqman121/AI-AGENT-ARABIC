@@ -47,8 +47,8 @@ test("projects empty, create, and conversation states @visual", async ({ page },
   await expect(page.getByRole("heading", { level: 1, name: seededTitle })).toBeVisible();
   await expect(
     page
-      .getByRole("region", { name: "التشغيل التقني" })
-      .getByRole("button", { name: "بدء التشغيل" }),
+      .getByRole("region", { name: "إعداد خطة المشروع" })
+      .getByRole("button", { name: "إعداد الخطة" }),
   ).toBeVisible();
   await captureState(page, testInfo, "conversation-default");
 

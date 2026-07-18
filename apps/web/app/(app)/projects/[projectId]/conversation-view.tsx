@@ -34,6 +34,7 @@ export type ConversationMessage = {
   id: string;
   content: string;
   createdAtIso: string;
+  role: "user" | "assistant";
 };
 
 type ViewProps = {
@@ -226,6 +227,7 @@ export function ConversationView({
               key={message.id}
               content={message.content}
               dateLabel={formatDateTimeLabel(new Date(message.createdAtIso))}
+              role={message.role}
             />
           ))}
           <div ref={endRef} />

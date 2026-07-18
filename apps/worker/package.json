@@ -16,8 +16,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@wakil/agent-core": "workspace:*",
     "@wakil/db": "workspace:*",
+    "@wakil/model-router": "workspace:*",
     "@wakil/shared": "workspace:*",
+    "@wakil/skills": "workspace:*",
     "bullmq": "5.63.1",
     "drizzle-orm": "0.45.2",
     "ioredis": "5.11.1",

@@ -27,8 +27,7 @@ pnpm dev
 
 This is the supported startup path. It creates a gitignored `.env.local` when needed, starts and
 health-checks the local services, applies committed database migrations, builds the database
-package, and starts the web and idle worker apps. Existing `.env.local` values are never
-overwritten.
+package, and starts the web and worker apps. Existing `.env.local` values are never overwritten.
 
 Local endpoints:
 
@@ -50,6 +49,30 @@ also uses that host.
 
 The MinIO bootstrap service creates `wakil-dev` as a private bucket. M0 does not include application
 storage access or public object URLs.
+
+## Model provider configuration
+
+Layer B runs one bounded Arabic planning turn in the worker. OpenRouter is the default provider;
+direct OpenAI, Anthropic, and Google connections are explicit alternatives. Copy variable names from
+`.env.example` into the gitignored `.env.local` and configure exactly the provider selected by
+`MODEL_PROVIDER`:
+
+| Provider     | Required variables                       | Optional base URL     |
+| ------------ | ---------------------------------------- | --------------------- |
+| `openrouter` | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | `OPENROUTER_BASE_URL` |
+| `openai`     | `OPENAI_API_KEY`, `OPENAI_MODEL`         | `OPENAI_BASE_URL`     |
+| `anthropic`  | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`   | `ANTHROPIC_BASE_URL`  |
+| `google`     | `GOOGLE_API_KEY`, `GOOGLE_MODEL`         | `GOOGLE_BASE_URL`     |
+
+Model identifiers are configuration and are never selected in browser code. The worker also requires
+`MODEL_INPUT_COST_MICROS_PER_MILLION_TOKENS` and `MODEL_OUTPUT_COST_MICROS_PER_MILLION_TOKENS`; set
+these to the selected model's current rates so the preflight spend check is conservative. OpenRouter
+replaces the estimate with returned provider cost when present. The remaining `MODEL_MAX_*` and
+`MODEL_DEADLINE_MS` variables define the hard time, attempt, output, event, and spend ceilings.
+
+The worker fails fast with field names only when the selected provider is incomplete. It never
+prints credential values and never silently falls back to a different provider. Restart `pnpm dev`
+after changing server environment configuration.
 
 ## Stop services
 
@@ -87,8 +110,10 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:integration:migrations
+pnpm test:integration
 pnpm build
-pnpm test:smoke
+pnpm test:e2e
+pnpm test:e2e:visual
 ```
 
 The integration suite requires a reachable Docker daemon and starts an isolated PostgreSQL 17

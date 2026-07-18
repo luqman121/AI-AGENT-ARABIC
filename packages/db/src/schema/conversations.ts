@@ -49,6 +49,7 @@ export const conversationMessages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    unique("conversation_messages_id_workspace_unique").on(table.id, table.workspaceId),
     index("conversation_messages_workspace_created_idx").on(table.workspaceId, table.createdAt),
     // Search in M1 includes saved Arabic request text without language-specific stemming.
     index("conversation_messages_content_trgm_idx").using(
@@ -60,7 +61,7 @@ export const conversationMessages = pgTable(
       foreignColumns: [conversations.id, conversations.workspaceId],
       name: "conversation_messages_conversation_workspace_fk",
     }).onDelete("cascade"),
-    check("conversation_messages_role_check", sql`${table.role} = 'user'`),
+    check("conversation_messages_role_check", sql`${table.role} in ('user', 'assistant')`),
     check(
       "conversation_messages_content_length_check",
       sql`char_length(btrim(${table.content})) between 1 and 20000`,

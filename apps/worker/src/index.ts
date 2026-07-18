@@ -7,6 +7,7 @@ import pino from "pino";
 
 import { readWorkerEnv } from "./env.js";
 import { checkReadiness } from "./readiness.js";
+import { createConfiguredModel } from "./model.js";
 import { processRun } from "./runs/processor.js";
 
 async function main(): Promise<void> {
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
     },
   });
   const database = createDatabaseClient(env.DATABASE_URL);
+  const configuredModel = createConfiguredModel(env);
   const redis = new Redis(env.REDIS_URL, {
     enableOfflineQueue: false,
     lazyConnect: true,
@@ -53,7 +55,17 @@ async function main(): Promise<void> {
     const worker = new Worker<RunJobData>(
       RUNS_QUEUE_NAME,
       async (job) => {
-        const status = await processRun({ db: database.db, redis: publisher }, job.data);
+        const status = await processRun(
+          {
+            adapter: configuredModel.adapter,
+            db: database.db,
+            limits: configuredModel.limits,
+            model: configuredModel.model,
+            modelConfigKey: configuredModel.configKey,
+            redis: publisher,
+          },
+          job.data,
+        );
         logger.info({ runId: job.data.runId, status }, "run processed");
       },
       { connection: queueConnection, concurrency: 4 },

@@ -1,7 +1,31 @@
-# Wakil M0-M2 Layer A Implementation Plan
+# Wakil M0-M2 Implementation Plan
 
-**Status:** M0, M1, and M2 Layer A are implemented and locally verified. M2 Layer A was explicitly
-authorized by the user and completed on 2026-07-18. Layers B and C remain out of scope.
+## M2 Layer B completion evidence (2026-07-18)
+
+The implemented slice follows the approved scope, limits, and acceptance criteria recorded in
+`docs/superpowers/specs/2026-07-18-m2-layer-b-live-agent-design.md`.
+
+- **Delivered:** one bounded real model-backed Arabic planning turn, durable assistant streaming,
+  one validated final assistant message, explicit failure states, and persisted accounting.
+- **Files:** new `packages/model-router`, `packages/agent-core`, and `packages/skills`; focused
+  run/message schema and migration changes; worker composition; shared contracts; conversation/run
+  UI; provider configuration documentation; and unit, integration, eval, and mobile E2E coverage.
+- **Assumptions:** Layer B produces a plan only; it has no tools, code execution, artifacts, or
+  external side effects. Layer C starts only after the complete Layer B gate passes.
+- **Provider routing:** OpenRouter is primary; direct OpenAI, Anthropic, and Google adapters are
+  explicit alternatives. Model configuration remains environment-driven, credentials remain
+  server-only, and there is no silent cross-provider fallback.
+- **Verification:** formatting, lint, strict typecheck, package tests, 4/4 clean-database migration
+  tests, 4 database integration tests, 3 worker integration tests, 25 web integration tests, the
+  production build, 22/22 functional mobile tests, and 22/22 visual mobile tests passed. Changed run
+  states were inspected at `390x844` and `430x932`.
+- **Provider test boundary:** adapter contracts and the complete browser flow use deterministic
+  local HTTP/SSE fixtures. No production provider credential or paid request was used.
+- **Acceptance:** provider routing, validation, durable deltas and replay, cancellation, refusal and
+  error mapping, terminal-message idempotency, and configured limits pass the Layer B gate.
+
+**Status:** M0, M1, M2 Layer A, and M2 Layer B are implemented and locally verified. Layer C remains
+out of scope and requires a separately approved milestone.
 
 ## M2 Layer A completion evidence (2026-07-18)
 

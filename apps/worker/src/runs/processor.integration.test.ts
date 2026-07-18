@@ -16,6 +16,30 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 
 import { processRun } from "./processor.js";
 
+const modelDeps = {
+  adapter: {
+    provider: "openrouter" as const,
+    async *stream() {
+      yield { text: "خطة موجزة\n1. جمع المحتوى\n", type: "text-delta" as const };
+      yield { text: "2. مراجعة النتيجة", type: "text-delta" as const };
+      yield { type: "usage" as const, usage: { inputTokens: 10, outputTokens: 8 } };
+      yield { type: "completed" as const };
+    },
+  },
+  limits: {
+    deadlineMs: 1_000,
+    inputCostMicrosPerMillionTokens: 1,
+    maxAttempts: 1,
+    maxCostMicros: 1_000,
+    maxDeltaEvents: 10,
+    maxOutputChars: 1_000,
+    maxOutputTokens: 100,
+    outputCostMicrosPerMillionTokens: 1,
+  },
+  model: "configured-model",
+  modelConfigKey: "openrouter",
+};
+
 let container: StartedPostgreSqlContainer;
 let handle: ReturnType<typeof createDatabaseClient>;
 let redis: Redis;
@@ -76,7 +100,7 @@ it("runs to succeeded and emits ordered events", async () => {
   await seedRun(runId);
 
   const status = await processRun(
-    { db: handle.db, redis },
+    { db: handle.db, redis, ...modelDeps },
     {
       runId,
       workspaceId: ids.workspace,
@@ -93,16 +117,27 @@ it("runs to succeeded and emits ordered events", async () => {
   expect(events.map((e) => e.type)).toEqual([
     "run.queued",
     "run.started",
-    "run.step",
-    "run.step",
-    "run.step",
+    "agent.started",
+    "assistant.delta",
+    "assistant.delta",
+    "assistant.completed",
     "run.succeeded",
   ]);
 
   const run = (await handle.db.select().from(runs).where(eq(runs.id, runId)))[0];
   expect(run?.status).toBe("succeeded");
-  expect(run?.stepCount).toBe(3);
+  expect(run?.stepCount).toBe(4);
+  expect(run?.assistantMessageId).not.toBeNull();
+  expect(run?.modelConfigKey).toBe("openrouter");
   expect(run?.finishedAt).not.toBeNull();
+
+  const assistant = await handle.db
+    .select({ content: conversationMessages.content, role: conversationMessages.role })
+    .from(conversationMessages)
+    .where(eq(conversationMessages.id, run?.assistantMessageId ?? ""));
+  expect(assistant).toEqual([
+    { content: "خطة موجزة\n1. جمع المحتوى\n2. مراجعة النتيجة", role: "assistant" },
+  ]);
 });
 
 it("cancels cooperatively when cancel_requested_at is set", async () => {
@@ -111,7 +146,7 @@ it("cancels cooperatively when cancel_requested_at is set", async () => {
   await handle.db.update(runs).set({ cancelRequestedAt: new Date() }).where(eq(runs.id, runId));
 
   const status = await processRun(
-    { db: handle.db, redis },
+    { db: handle.db, redis, ...modelDeps },
     {
       runId,
       workspaceId: ids.workspace,

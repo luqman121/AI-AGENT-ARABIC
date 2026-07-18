@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { users } from "./auth.js";
-import { conversations } from "./conversations.js";
+import { conversationMessages, conversations } from "./conversations.js";
 import { projects } from "./projects.js";
 import { workspaces } from "./tenancy.js";
 
@@ -33,6 +33,13 @@ export const runs = pgTable(
       .references(() => users.id, { onDelete: "restrict" }),
     errorCode: text("error_code"),
     stepCount: integer("step_count").notNull().default(0),
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    providerCostMicros: integer("provider_cost_micros").notNull().default(0),
+    providerAttempts: integer("provider_attempts").notNull().default(0),
+    modelConfigKey: text("model_config_key"),
+    promptVersion: text("prompt_version"),
+    assistantMessageId: uuid("assistant_message_id"),
     cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp("started_at", { withTimezone: true }),
@@ -52,6 +59,11 @@ export const runs = pgTable(
       foreignColumns: [conversations.id, conversations.workspaceId],
       name: "runs_conversation_workspace_fk",
     }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.assistantMessageId, table.workspaceId],
+      foreignColumns: [conversationMessages.id, conversationMessages.workspaceId],
+      name: "runs_assistant_message_workspace_fk",
+    }).onDelete("restrict"),
     index("runs_workspace_project_created_idx").on(
       table.workspaceId,
       table.projectId,
@@ -61,6 +73,9 @@ export const runs = pgTable(
     uniqueIndex("runs_one_active_per_project")
       .on(table.projectId)
       .where(sql`${table.status} in ('queued', 'running')`),
+    uniqueIndex("runs_assistant_message_unique")
+      .on(table.assistantMessageId)
+      .where(sql`${table.assistantMessageId} is not null`),
     check(
       "runs_status_check",
       sql`${table.status} in ('queued', 'running', 'succeeded', 'failed', 'cancelled')`,
@@ -79,7 +94,7 @@ export const runEvents = pgTable(
     // Monotonic per-run sequence starting at 1; the basis for Last-Event-ID replay.
     seq: integer("seq").notNull(),
     type: text("type").notNull(),
-    // Safe metadata only (step index, label key). Never request text or content.
+    // Bounded event data. Assistant deltas are user-visible content, never application logs.
     data: jsonb("data")
       .notNull()
       .default(sql`'{}'::jsonb`),
@@ -95,7 +110,7 @@ export const runEvents = pgTable(
     }).onDelete("cascade"),
     check(
       "run_events_type_check",
-      sql`${table.type} in ('run.queued', 'run.started', 'run.step', 'run.succeeded', 'run.failed', 'run.cancelled')`,
+      sql`${table.type} in ('run.queued', 'run.started', 'run.step', 'agent.started', 'assistant.delta', 'assistant.completed', 'agent.refused', 'agent.limit_exceeded', 'run.succeeded', 'run.failed', 'run.cancelled')`,
     ),
   ],
 );

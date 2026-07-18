@@ -40,32 +40,36 @@ test.afterAll(async () => {
   queueRedis.disconnect();
 });
 
-async function createProject(page: Page, title: string): Promise<void> {
+async function createProject(
+  page: Page,
+  title: string,
+  request = "أنشئ صفحة تعريفية واضحة مع معلومات التواصل",
+): Promise<void> {
   await signIn(page, uniqueEmail("run"));
   await page.getByLabel("اسم المشروع").fill(title);
-  await page.getByLabel("اوصف طلبك").fill("أنشئ صفحة تعريفية واضحة مع معلومات التواصل");
+  await page.getByLabel("اوصف طلبك").fill(request);
   await page.getByRole("button", { name: "إنشاء المشروع" }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
 }
 
 function runPanel(page: Page) {
-  return page.getByRole("region", { name: "التشغيل التقني" });
+  return page.getByRole("region", { name: "إعداد خطة المشروع" });
 }
 
 async function expectSuccessfulRun(page: Page): Promise<void> {
   const panel = runPanel(page);
-  await panel.getByRole("button", { name: "بدء التشغيل" }).click();
+  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
   await expect(panel.getByText("اكتمل", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(
     panel.getByRole("list", { name: "سجل خطوات التشغيل" }).getByRole("listitem"),
   ).toHaveText([
     "في قائمة الانتظار",
     "بدأ التشغيل",
-    "التحقق من الطلب",
-    "تسجيل نقطة تحقّق",
-    "إنهاء التحضير",
+    "بدأ إعداد الخطة",
+    "اكتملت الخطة",
     "اكتمل التشغيل",
   ]);
+  await expect(page.getByRole("article", { name: "رد وكيل" })).toContainText("خطة موجزة للمشروع");
 }
 
 async function holdWorkerAtValidation(): Promise<() => Promise<void>> {
@@ -108,7 +112,7 @@ test("queued, running, and succeeded run states @visual", async ({ page }, testI
   const panel = runPanel(page);
 
   await runQueue.pause();
-  await panel.getByRole("button", { name: "بدء التشغيل" }).click();
+  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
   await expect(panel.getByText("في قائمة الانتظار", { exact: true }).first()).toBeVisible();
   await captureState(page, testInfo, "run-queued");
 
@@ -121,6 +125,11 @@ test("queued, running, and succeeded run states @visual", async ({ page }, testI
     await releaseValidationLock();
   }
 
+  await expect(panel.getByText("خطة موجزة للمشروع", { exact: false })).toBeVisible({
+    timeout: 15_000,
+  });
+  await captureState(page, testInfo, "run-streaming");
+
   await expect(panel.getByText("اكتمل", { exact: true })).toBeVisible({ timeout: 20_000 });
   await captureState(page, testInfo, "run-succeeded");
   consoleWatcher.assertClean();
@@ -132,7 +141,7 @@ test("reconnecting and cancelled run states @visual", async ({ page }, testInfo:
 
   await runQueue.pause();
   await page.route("**/api/projects/*/runs/*/events", (route) => route.abort("failed"));
-  await panel.getByRole("button", { name: "بدء التشغيل" }).click();
+  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
   await expect(panel.getByText("جارٍ إعادة الاتصال لمتابعة التحديثات المحفوظة…")).toBeVisible({
     timeout: 15_000,
   });
@@ -148,4 +157,38 @@ test("reconnecting and cancelled run states @visual", async ({ page }, testInfo:
   await runQueue.resume();
   await expect(panel.getByText("أُلغي", { exact: true })).toBeVisible({ timeout: 20_000 });
   await captureState(page, testInfo, "run-cancelled");
+});
+
+test("refused run state @visual", async ({ page }, testInfo: TestInfo) => {
+  await createProject(page, "طلب يحتاج إلى تعديل", "اختبر حالة الرفض");
+  const panel = runPanel(page);
+  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
+  await expect(panel.getByText("تعذّر إعداد خطة مناسبة لهذا الطلب.", { exact: false })).toBeVisible(
+    {
+      timeout: 20_000,
+    },
+  );
+  await captureState(page, testInfo, "run-refused");
+});
+
+test("provider failure state @visual", async ({ page }, testInfo: TestInfo) => {
+  await createProject(page, "تعذّر مزود الخطة", "اختبر فشل المزود");
+  const panel = runPanel(page);
+  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
+  await expect(panel.getByText("تعذّر إعداد الخطة. يمكنك بدء تشغيل جديد.")).toBeVisible({
+    timeout: 20_000,
+  });
+  await captureState(page, testInfo, "run-provider-failed");
+});
+
+test("limit exceeded state @visual", async ({ page }, testInfo: TestInfo) => {
+  await createProject(page, "خطة تتجاوز الحد", "اختبر حد الاستخدام");
+  const panel = runPanel(page);
+  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
+  await expect(
+    panel.getByText("توقف إعداد الخطة عند حدّ الاستخدام المسموح.", { exact: false }),
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+  await captureState(page, testInfo, "run-limit-exceeded");
 });

@@ -138,12 +138,21 @@ importers:
 
   apps/worker:
     dependencies:
+      '@wakil/agent-core':
+        specifier: workspace:*
+        version: link:../../packages/agent-core
       '@wakil/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@wakil/model-router':
+        specifier: workspace:*
+        version: link:../../packages/model-router
       '@wakil/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@wakil/skills':
+        specifier: workspace:*
+        version: link:../../packages/skills
       bullmq:
         specifier: 5.63.1
         version: 5.63.1
@@ -163,6 +172,15 @@ importers:
       '@testcontainers/postgresql':
         specifier: 12.0.4
         version: 12.0.4
+
+  packages/agent-core:
+    dependencies:
+      '@wakil/model-router':
+        specifier: workspace:*
+        version: link:../model-router
+      '@wakil/skills':
+        specifier: workspace:*
+        version: link:../skills
 
   packages/db:
     dependencies:
@@ -186,7 +204,22 @@ importers:
         specifier: 0.31.10
         version: 0.31.10
 
+  packages/model-router:
+    dependencies:
+      '@wakil/skills':
+        specifier: workspace:*
+        version: link:../skills
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/shared:
+    dependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/skills:
     dependencies:
       zod:
         specifier: 4.4.3

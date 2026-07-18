@@ -35,14 +35,12 @@ sandbox.
 
 ## Current Milestone Scope
 
-M0 and M1 are complete. Implement **M2 Layer A — Run Backbone only**, as approved by the user on
-2026-07-18 and specified in:
+M0, M1, M2 Layer A, and **M2 Layer B — Live Agent and Model Router** are complete, as specified in:
 
-- `docs/superpowers/specs/2026-07-18-m2-run-backbone-design.md`
-- `docs/superpowers/plans/2026-07-18-m2-run-backbone.md`
+- `docs/superpowers/specs/2026-07-18-m2-layer-b-live-agent-design.md`
 
-**Status:** M2 Layer A was completed and locally verified on 2026-07-18. Any Layer B or Layer C work
-requires a new reviewed scope.
+**Status:** M2 Layer B passed its complete gate on 2026-07-18. OpenRouter is primary, with direct
+OpenAI, Anthropic, and Google adapters. No Layer C implementation is authorized in this run.
 
 ### M0 — Foundation
 
@@ -74,9 +72,17 @@ requires a new reviewed scope.
 - Idempotent start, cooperative cancellation, and one active run per project.
 - Truthful Arabic mobile run states and Playwright coverage at `390x844` and `430x932`.
 
-Do not implement the live AI agent, model providers, assistant responses, generated-code execution,
-external sandbox integration, artifacts, billing checkout, or production publishing in this
-milestone. Do not present deterministic system steps as AI output.
+### M2 Layer B — Live Agent and Model Router
+
+- A bounded real agent turn that produces a concise Arabic execution plan.
+- Versioned prompts and Arabic eval fixtures.
+- OpenRouter primary plus direct OpenAI, Anthropic, and Google adapters behind
+  `packages/model-router`.
+- Durable assistant deltas, a final assistant message, replay, cancellation, and explicit errors.
+- Time, attempt, token, event-size, and provider-spend limits.
+
+Do not implement generated-code execution, external sandbox integration, artifacts, billing
+checkout, or production publishing in this milestone.
 
 ## Locked Architecture
 
@@ -109,10 +115,10 @@ intentional motion should create a premium identity without generic AI-template 
 
 ## Success Criteria for This Codex Run
 
-- Complete the approved M2 Layer A implementation plan without expanding into Layers B or C.
-- Prove tenant isolation, idempotent start, one-active-run enforcement, ordered durable events,
-  replay, cancellation, and bounded worker execution with tests.
-- Show only persisted, truthful technical progress in the Arabic RTL mobile UI.
+- Complete the approved M2 Layer B scope without expanding into Layer C.
+- Prove provider routing, boundary validation, tenant isolation, durable streamed replay,
+  cancellation, refusal/error handling, one-final-message idempotency, and configured limits.
+- Show only real persisted provider output and truthful agent progress in the Arabic RTL mobile UI.
 - Pass formatting, lint, typecheck, unit, migration, integration, build, and both mobile Playwright
   gates before declaring the milestone complete.
 - Update `CHANGELOG.md` only with behavior verified in this run.

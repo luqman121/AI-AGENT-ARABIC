@@ -19,6 +19,8 @@ export type AppendRunEventInput = {
   type: RunEventType;
   stepKey?: RunStepKey;
   stepIndex?: number;
+  textDelta?: string;
+  errorCode?: string;
 };
 
 /** Inserts one append-only event with seq = max(seq)+1 for the run. */
@@ -37,6 +39,8 @@ export async function appendRunEvent(
   const data: Record<string, number | string> = {};
   if (input.stepKey) data["stepKey"] = input.stepKey;
   if (typeof input.stepIndex === "number") data["stepIndex"] = input.stepIndex;
+  if (input.textDelta) data["textDelta"] = input.textDelta;
+  if (input.errorCode) data["errorCode"] = input.errorCode;
 
   const inserted = (
     await tx
