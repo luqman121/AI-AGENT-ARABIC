@@ -10,6 +10,7 @@ export const APP_ERROR_CODES = [
   "RATE_LIMITED",
   "IDEMPOTENCY_CONFLICT",
   "PROJECT_ARCHIVED",
+  "RUN_ALREADY_ACTIVE",
   "INTERNAL_ERROR",
 ] as const;
 
@@ -23,6 +24,7 @@ export const APP_ERROR_MESSAGES: Record<AppErrorCode, string> = {
   IDEMPOTENCY_CONFLICT:
     "تعذّر تنفيذ الطلب لأنه يختلف عن طلب سابق بالمعرّف نفسه. حدّث الصفحة ثم أعد المحاولة.",
   PROJECT_ARCHIVED: "لا يمكن التعديل على مشروع مؤرشف.",
+  RUN_ALREADY_ACTIVE: "هناك تشغيل نشط بالفعل لهذا المشروع. انتظر انتهاءه أو ألغِه ثم أعد المحاولة.",
   INTERNAL_ERROR: "حدث خطأ غير متوقع. أعد المحاولة.",
 };
 
