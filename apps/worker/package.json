@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@wakil/db": "workspace:*",
+    "@wakil/shared": "workspace:*",
+    "bullmq": "5.63.1",
     "ioredis": "5.11.1",
     "pino": "10.3.1",
     "zod": "4.4.3"
