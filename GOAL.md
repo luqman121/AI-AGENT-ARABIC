@@ -35,7 +35,11 @@ sandbox.
 
 ## Current Milestone Scope
 
-Implement **M0 and M1 only**.
+M0 and M1 are complete. Implement **M2 Layer A — Run Backbone only**, as approved by the user on
+2026-07-18 and specified in:
+
+- `docs/superpowers/specs/2026-07-18-m2-run-backbone-design.md`
+- `docs/superpowers/plans/2026-07-18-m2-run-backbone.md`
 
 ### M0 — Foundation
 
@@ -58,10 +62,18 @@ Implement **M0 and M1 only**.
 - Wakil design tokens and reusable mobile UI components.
 - Playwright coverage and screenshots at `390x844` and `430x932`.
 
-Do not implement the live agent, BullMQ run processing, model providers, generated-code execution,
-external sandbox integration, billing checkout, or production publishing in this milestone.
-Interfaces or schemas may be prepared only when required by M0/M1 and must not become speculative
-frameworks.
+### M2 Layer A — Run Backbone
+
+- Durable, tenant-scoped `runs` and append-only `run_events` records.
+- BullMQ producer and worker consumer with a bounded deterministic state machine.
+- Persist events before Redis publication; PostgreSQL remains the replay source of truth.
+- SSE delivery with `Last-Event-ID` replay and tenant-safe authorization.
+- Idempotent start, cooperative cancellation, and one active run per project.
+- Truthful Arabic mobile run states and Playwright coverage at `390x844` and `430x932`.
+
+Do not implement the live AI agent, model providers, assistant responses, generated-code execution,
+external sandbox integration, artifacts, billing checkout, or production publishing in this
+milestone. Do not present deterministic system steps as AI output.
 
 ## Locked Architecture
 
@@ -94,7 +106,10 @@ intentional motion should create a premium identity without generic AI-template 
 
 ## Success Criteria for This Codex Run
 
-- `docs/implementation-plan.md` maps M0/M1 to concrete files, tests, and acceptance criteria.
-- The plan identifies unresolved blockers without changing locked decisions.
-- No feature code is written before the plan is reviewed.
-- After approval, M0 is implemented and verified before M1 begins.
+- Complete the approved M2 Layer A implementation plan without expanding into Layers B or C.
+- Prove tenant isolation, idempotent start, one-active-run enforcement, ordered durable events,
+  replay, cancellation, and bounded worker execution with tests.
+- Show only persisted, truthful technical progress in the Arabic RTL mobile UI.
+- Pass formatting, lint, typecheck, unit, migration, integration, build, and both mobile Playwright
+  gates before declaring the milestone complete.
+- Update `CHANGELOG.md` only with behavior verified in this run.

@@ -2,6 +2,7 @@
 .pnpm-store
 .turbo
 .tools
+.superpowers
 artifacts
 coverage
 dist

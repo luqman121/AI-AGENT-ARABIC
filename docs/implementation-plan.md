@@ -1,7 +1,23 @@
-# Wakil M0-M1 Implementation Plan
+# Wakil M0-M2 Layer A Implementation Plan
 
-**Status:** M0 implemented and locally verified on 2026-07-16. Hosted CI evidence is pending a known
-GitHub remote; M1 remains gated.
+**Status:** M0 and M1 are implemented. M2 Layer A was explicitly authorized by the user on
+2026-07-18. Tasks 1-5 are implemented on the current branch; execution resumes at Task 6.
+
+## Current continuation check (2026-07-18)
+
+The repository verification gate was restored before M2 continuation. The active implementation
+scope is the reviewed task-by-task plan at `docs/superpowers/plans/2026-07-18-m2-run-backbone.md`.
+
+- **Scope:** complete Tasks 6-12: web queue producer, tenant-safe run services and actions, SSE
+  replay/live delivery, truthful mobile UI, mobile E2E coverage, and the final milestone gate.
+- **Files:** only the files enumerated by Tasks 6-12 in the reviewed M2 Layer A plan, plus required
+  factual updates to this document and `CHANGELOG.md`.
+- **Tests:** `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
+  `pnpm test:integration:migrations`, `pnpm test:integration`, and `pnpm build`.
+- **Assumptions:** ignored `.superpowers/` files are local execution state; Redis is transport only;
+  the deterministic worker steps describe real persisted system work and never claim AI output.
+- **Acceptance:** all Layer A behavior and gates in `GOAL.md` and the reviewed plan pass; no model,
+  sandbox, artifact, or publishing behavior is added.
 
 ## 1. Sources and current repository state
 

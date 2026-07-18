@@ -4,6 +4,13 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Verification maintenance
+
+- Fixed the database integration-test command so the root-level migration suite is collected by the
+  full `pnpm test:integration` gate.
+- Excluded local `.superpowers/` execution state from repository formatting and formatted the
+  committed M2 planning documents.
+
 ### M1 — Core Product Shell
 
 Added the Arabic-first, mobile-first authenticated product shell on top of the M0 foundation.

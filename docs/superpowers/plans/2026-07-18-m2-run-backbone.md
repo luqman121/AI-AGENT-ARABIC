@@ -1,44 +1,77 @@
 # M2 Layer A — Run Backbone Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
+> (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a durable, tenant-scoped Run backbone — `runs` + `run_events`, a BullMQ producer/consumer, a bounded deterministic worker state machine, and SSE delivery with `Last-Event-ID` replay — surfaced as truthful mobile run states, with no model provider, sandbox, or artifact.
+**Goal:** Add a durable, tenant-scoped Run backbone — `runs` + `run_events`, a BullMQ
+producer/consumer, a bounded deterministic worker state machine, and SSE delivery with
+`Last-Event-ID` replay — surfaced as truthful mobile run states, with no model provider, sandbox, or
+artifact.
 
-**Architecture:** The web app creates a `queued` run row plus its first `run.queued` event in one transaction, then enqueues a BullMQ job. The worker consumes the job, transitions the run to `running`, executes a small fixed set of real deterministic steps (each persisted to PostgreSQL as a `run_events` row, then published to a Redis channel), and finishes in a terminal state. A Next.js SSE route replays persisted events by `seq` (`Last-Event-ID`) then subscribes to Redis for live events. PostgreSQL is the durable source of truth; Redis is transport only.
+**Architecture:** The web app creates a `queued` run row plus its first `run.queued` event in one
+transaction, then enqueues a BullMQ job. The worker consumes the job, transitions the run to
+`running`, executes a small fixed set of real deterministic steps (each persisted to PostgreSQL as a
+`run_events` row, then published to a Redis channel), and finishes in a terminal state. A Next.js
+SSE route replays persisted events by `seq` (`Last-Event-ID`) then subscribes to Redis for live
+events. PostgreSQL is the durable source of truth; Redis is transport only.
 
-**Tech Stack:** TypeScript (strict, `noUncheckedIndexedAccess`), Drizzle ORM + PostgreSQL 17, BullMQ + Redis 7, Next.js 16 App Router, ioredis, Zod, Vitest, Testcontainers, Playwright.
+**Tech Stack:** TypeScript (strict, `noUncheckedIndexedAccess`), Drizzle ORM + PostgreSQL 17,
+BullMQ + Redis 7, Next.js 16 App Router, ioredis, Zod, Vitest, Testcontainers, Playwright.
 
 ## Global Constraints
 
-- Node.js 22 only (`engines.node` `>=22.13.0 <23`); ESM everywhere; TypeScript strict with `noUncheckedIndexedAccess`.
-- Zod validates every external boundary. Mutation services return `ActionResult<T>` (`success`/`failure` from `@wakil/shared`); errors are stable app codes mapped to Arabic messages, never leaking SQL, stack traces, provider details, or cross-tenant row existence.
-- Every user-owned query takes `workspaceId` from the session-derived `ServiceContext`; client-supplied workspace/user IDs are never trusted. A missing row and a cross-tenant row both return `NOT_FOUND`.
-- PostgreSQL is the durable source of truth; Redis is transport/ephemeral only. Replay/reconnect must work from PostgreSQL alone.
-- Schema changes require a committed migration via `pnpm db:generate` (inspect SQL, test clean + existing DB). `drizzle-kit push` is banned. UUID PKs with DB defaults; `timestamptz` timestamps. `run_events` is append-only (no update/delete paths).
-- Retryable mutations accept and enforce idempotency keys (reuse → replay original result; changed payload → `IDEMPOTENCY_CONFLICT`).
-- No fake progress: every UI event describes actual persisted work. No assistant messages, artifacts, plans, or timers-as-progress. The `conversation_messages.role = 'user'` CHECK stays unchanged.
-- Never log full prompts, message content, tokens, or credentials. `run_events.data` and audit metadata carry safe keys only (indices, label keys, lengths, codes) — never request text or content.
-- `apps/web` and `apps/worker` never import each other's code; they communicate only through DB records, the BullMQ job, and events. The job payload type lives in `packages/shared`.
-- New runtime dependency limited to `bullmq` (consumed immediately by web + worker). No `packages/model-router`, `packages/sandbox`, `packages/agent-core`, `packages/skills`, or `templates/`.
-- Milestone gate before "done": `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:integration:migrations`, `pnpm test:integration`, `pnpm build`, and the Playwright `mobile-390`/`mobile-430` suites. `CHANGELOG.md` entry only after verification passes.
+- Node.js 22 only (`engines.node` `>=22.13.0 <23`); ESM everywhere; TypeScript strict with
+  `noUncheckedIndexedAccess`.
+- Zod validates every external boundary. Mutation services return `ActionResult<T>`
+  (`success`/`failure` from `@wakil/shared`); errors are stable app codes mapped to Arabic messages,
+  never leaking SQL, stack traces, provider details, or cross-tenant row existence.
+- Every user-owned query takes `workspaceId` from the session-derived `ServiceContext`;
+  client-supplied workspace/user IDs are never trusted. A missing row and a cross-tenant row both
+  return `NOT_FOUND`.
+- PostgreSQL is the durable source of truth; Redis is transport/ephemeral only. Replay/reconnect
+  must work from PostgreSQL alone.
+- Schema changes require a committed migration via `pnpm db:generate` (inspect SQL, test clean +
+  existing DB). `drizzle-kit push` is banned. UUID PKs with DB defaults; `timestamptz` timestamps.
+  `run_events` is append-only (no update/delete paths).
+- Retryable mutations accept and enforce idempotency keys (reuse → replay original result; changed
+  payload → `IDEMPOTENCY_CONFLICT`).
+- No fake progress: every UI event describes actual persisted work. No assistant messages,
+  artifacts, plans, or timers-as-progress. The `conversation_messages.role = 'user'` CHECK stays
+  unchanged.
+- Never log full prompts, message content, tokens, or credentials. `run_events.data` and audit
+  metadata carry safe keys only (indices, label keys, lengths, codes) — never request text or
+  content.
+- `apps/web` and `apps/worker` never import each other's code; they communicate only through DB
+  records, the BullMQ job, and events. The job payload type lives in `packages/shared`.
+- New runtime dependency limited to `bullmq` (consumed immediately by web + worker). No
+  `packages/model-router`, `packages/sandbox`, `packages/agent-core`, `packages/skills`, or
+  `templates/`.
+- Milestone gate before "done": `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
+  `pnpm test:integration:migrations`, `pnpm test:integration`, `pnpm build`, and the Playwright
+  `mobile-390`/`mobile-430` suites. `CHANGELOG.md` entry only after verification passes.
 
 ---
 
 ## File structure
 
 **`packages/db`**
+
 - Create `src/schema/runs.ts` — `runs` and `run_events` tables.
 - Modify `src/schema/index.ts` — export the new schema.
 - Create `migrations/0001_*.sql` (+ `meta`) — generated migration.
 - Modify `tests/migrations.integration.test.ts` — assert new tables/constraints and tenant FKs.
 
 **`packages/shared`**
-- Create `src/contracts/runs.ts` — run status/event enums, step keys, event payload, `startRun`/`cancelRun` contracts, job payload type, queue/channel constants, Arabic label map.
+
+- Create `src/contracts/runs.ts` — run status/event enums, step keys, event payload,
+  `startRun`/`cancelRun` contracts, job payload type, queue/channel constants, Arabic label map.
 - Modify `src/errors.ts` — add `RUN_ALREADY_ACTIVE` code + Arabic message.
 - Modify `src/index.ts` — re-export run contracts.
 - Create `src/contracts/runs.test.ts` — contract + label unit tests.
 
 **`apps/worker`**
+
 - Modify `package.json` — add `bullmq`.
 - Create `src/runs/steps.ts` — pure deterministic step list.
 - Create `src/runs/events.ts` — `appendRunEvent` (seq assignment + insert) and `publishRunEvent`.
@@ -47,6 +80,7 @@
 - Create `src/runs/steps.test.ts`, `src/runs/processor.integration.test.ts`.
 
 **`apps/web`**
+
 - Create `src/server/features/runs/queue.ts` — BullMQ producer singleton.
 - Create `src/server/features/runs/mutations.ts` — `startRun`, `cancelRun`.
 - Create `src/server/features/runs/queries.ts` — tenant-scoped run/event reads.
@@ -64,18 +98,24 @@
 ## Task 1: Database schema — `runs` and `run_events`
 
 **Files:**
+
 - Create: `packages/db/src/schema/runs.ts`
 - Modify: `packages/db/src/schema/index.ts`
 - Generate: `packages/db/migrations/0001_*.sql` (+ `meta/`)
 - Test: `packages/db/tests/migrations.integration.test.ts`
 
 **Interfaces:**
-- Consumes: `workspaces` (`tenancy.js`), `projects` (`projects.js`), `conversations` (`conversations.js`), `users` (`auth.js`).
-- Produces: `runs` and `runEvents` Drizzle tables. Columns — `runs`: `id, workspaceId, projectId, conversationId, status, createdByUserId, errorCode, stepCount, cancelRequestedAt, createdAt, startedAt, finishedAt`; `runEvents`: `id, workspaceId, runId, seq, type, data, createdAt`.
+
+- Consumes: `workspaces` (`tenancy.js`), `projects` (`projects.js`), `conversations`
+  (`conversations.js`), `users` (`auth.js`).
+- Produces: `runs` and `runEvents` Drizzle tables. Columns — `runs`:
+  `id, workspaceId, projectId, conversationId, status, createdByUserId, errorCode, stepCount, cancelRequestedAt, createdAt, startedAt, finishedAt`;
+  `runEvents`: `id, workspaceId, runId, seq, type, data, createdAt`.
 
 - [ ] **Step 1: Write the failing migration assertion**
 
-Add to `packages/db/tests/migrations.integration.test.ts`, inside the existing `describe`, extend the clean-schema `arrayContaining` list and add a new test:
+Add to `packages/db/tests/migrations.integration.test.ts`, inside the existing `describe`, extend
+the clean-schema `arrayContaining` list and add a new test:
 
 ```typescript
 it("creates the runs backbone with tenant and active-run constraints", async () => {
@@ -100,12 +140,13 @@ it("creates the runs backbone with tenant and active-run constraints", async () 
 });
 ```
 
-Also add `"run_events"` and `"runs"` to the `expect.arrayContaining([...])` list in the existing "applies the complete schema" test.
+Also add `"run_events"` and `"runs"` to the `expect.arrayContaining([...])` list in the existing
+"applies the complete schema" test.
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm --filter @wakil/db test:integration:migrations`
-Expected: FAIL — `runs`/`run_events` tables do not exist yet.
+Run: `pnpm --filter @wakil/db test:integration:migrations` Expected: FAIL — `runs`/`run_events`
+tables do not exist yet.
 
 - [ ] **Step 3: Write the schema**
 
@@ -194,7 +235,9 @@ export const runEvents = pgTable(
     seq: integer("seq").notNull(),
     type: text("type").notNull(),
     // Safe metadata only (step index, label key). Never request text or content.
-    data: jsonb("data").notNull().default(sql`'{}'::jsonb`),
+    data: jsonb("data")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -223,13 +266,16 @@ export * from "./runs.js";
 
 - [ ] **Step 5: Generate the migration**
 
-Run: `pnpm db:generate`
-Expected: a new `packages/db/migrations/0001_*.sql` file. Open it and confirm it contains `create table "runs"`, `create table "run_events"`, the partial unique index `runs_one_active_per_project ... where status in ('queued', 'running')`, `run_events_run_seq_unique`, both composite foreign keys, and the two CHECK constraints. Confirm it does **not** alter any existing M1 table.
+Run: `pnpm db:generate` Expected: a new `packages/db/migrations/0001_*.sql` file. Open it and
+confirm it contains `create table "runs"`, `create table "run_events"`, the partial unique index
+`runs_one_active_per_project ... where status in ('queued', 'running')`,
+`run_events_run_seq_unique`, both composite foreign keys, and the two CHECK constraints. Confirm it
+does **not** alter any existing M1 table.
 
 - [ ] **Step 6: Run the migration tests to verify they pass**
 
-Run: `pnpm --filter @wakil/db test:integration:migrations`
-Expected: PASS (clean-schema, idempotent existing-DB, and the new runs-backbone test).
+Run: `pnpm --filter @wakil/db test:integration:migrations` Expected: PASS (clean-schema, idempotent
+existing-DB, and the new runs-backbone test).
 
 - [ ] **Step 7: Commit**
 
@@ -243,20 +289,26 @@ git commit -m "feat(db): add runs and run_events schema with one-active-per-proj
 ## Task 2: Shared contracts, enums, and Arabic labels
 
 **Files:**
+
 - Create: `packages/shared/src/contracts/runs.ts`
 - Modify: `packages/shared/src/errors.ts`
 - Modify: `packages/shared/src/index.ts`
 - Test: `packages/shared/src/contracts/runs.test.ts`
 
 **Interfaces:**
+
 - Consumes: `idempotencyKeySchema`, `projectIdSchema` from `./fields.js`.
 - Produces:
   - `RUN_STATUSES` = `["queued","running","succeeded","failed","cancelled"]`, type `RunStatus`.
-  - `RUN_EVENT_TYPES` = `["run.queued","run.started","run.step","run.succeeded","run.failed","run.cancelled"]`, type `RunEventType`.
+  - `RUN_EVENT_TYPES` =
+    `["run.queued","run.started","run.step","run.succeeded","run.failed","run.cancelled"]`, type
+    `RunEventType`.
   - `RUN_STEP_KEYS` = `["validate-request","record-checkpoint","finalize"]`, type `RunStepKey`.
-  - `runEventPayloadSchema` → `RunEventPayload` = `{ seq: number; type: RunEventType; stepKey?: RunStepKey; stepIndex?: number; createdAtIso: string }`.
+  - `runEventPayloadSchema` → `RunEventPayload` =
+    `{ seq: number; type: RunEventType; stepKey?: RunStepKey; stepIndex?: number; createdAtIso: string }`.
   - `startRunInputSchema` → `StartRunInput` = `{ projectId: string; idempotencyKey: string }`.
-  - `cancelRunInputSchema` → `CancelRunInput` = `{ projectId: string; runId: string; idempotencyKey: string }`.
+  - `cancelRunInputSchema` → `CancelRunInput` =
+    `{ projectId: string; runId: string; idempotencyKey: string }`.
   - `runIdSchema`.
   - `RunJobData` = `{ runId: string; workspaceId: string; projectId: string }`.
   - `RUNS_QUEUE_NAME = "wakil-runs"`, `runEventChannel(runId: string): string`.
@@ -323,8 +375,7 @@ describe("run contracts", () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm --filter @wakil/shared test`
-Expected: FAIL — `./runs.js` does not exist.
+Run: `pnpm --filter @wakil/shared test` Expected: FAIL — `./runs.js` does not exist.
 
 - [ ] **Step 3: Write the contracts**
 
@@ -413,7 +464,8 @@ export function runEventLabel(payload: { type: RunEventType; stepKey?: RunStepKe
 
 - [ ] **Step 4: Add the error code**
 
-In `packages/shared/src/errors.ts`, add `"RUN_ALREADY_ACTIVE"` to `APP_ERROR_CODES` (before `"INTERNAL_ERROR"`), and add to `APP_ERROR_MESSAGES`:
+In `packages/shared/src/errors.ts`, add `"RUN_ALREADY_ACTIVE"` to `APP_ERROR_CODES` (before
+`"INTERNAL_ERROR"`), and add to `APP_ERROR_MESSAGES`:
 
 ```typescript
   RUN_ALREADY_ACTIVE: "هناك تشغيل نشط بالفعل لهذا المشروع. انتظر انتهاءه أو ألغِه ثم أعد المحاولة.",
@@ -447,8 +499,7 @@ export {
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `pnpm --filter @wakil/shared test && pnpm --filter @wakil/shared typecheck`
-Expected: PASS.
+Run: `pnpm --filter @wakil/shared test && pnpm --filter @wakil/shared typecheck` Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
@@ -462,20 +513,23 @@ git commit -m "feat(shared): add run contracts, enums, job payload, and Arabic l
 ## Task 3: Worker — BullMQ dependency and deterministic step list
 
 **Files:**
+
 - Modify: `apps/worker/package.json`
 - Create: `apps/worker/src/runs/steps.ts`
 - Test: `apps/worker/src/runs/steps.test.ts`
 
 **Interfaces:**
+
 - Consumes: `RUN_STEP_KEYS`, `RunStepKey` from `@wakil/shared`.
 - Produces: `RUN_STEPS: readonly RunStepKey[]`, `STEP_LIMIT: number`, `TIME_LIMIT_MS: number`.
 
 - [ ] **Step 1: Add the dependency**
 
-In `apps/worker/package.json`, add to `dependencies` (keep alphabetical): `"bullmq": "5.63.1"`, `"@wakil/shared": "workspace:*"`. Then run:
+In `apps/worker/package.json`, add to `dependencies` (keep alphabetical): `"bullmq": "5.63.1"`,
+`"@wakil/shared": "workspace:*"`. Then run:
 
-Run: `pnpm install`
-Expected: lockfile updates; `bullmq` and `@wakil/shared` resolve for `@wakil/worker`.
+Run: `pnpm install` Expected: lockfile updates; `bullmq` and `@wakil/shared` resolve for
+`@wakil/worker`.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -501,8 +555,7 @@ describe("run steps", () => {
 
 - [ ] **Step 3: Run it to verify it fails**
 
-Run: `pnpm --filter @wakil/worker test`
-Expected: FAIL — `./steps.js` not found.
+Run: `pnpm --filter @wakil/worker test` Expected: FAIL — `./steps.js` not found.
 
 - [ ] **Step 4: Write the step list**
 
@@ -523,8 +576,7 @@ export const TIME_LIMIT_MS = 60_000;
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `pnpm --filter @wakil/worker test`
-Expected: PASS.
+Run: `pnpm --filter @wakil/worker test` Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -538,14 +590,19 @@ git commit -m "feat(worker): add bullmq and the deterministic run step list"
 ## Task 4: Worker — event persistence (seq assignment) and Redis publish
 
 **Files:**
+
 - Create: `apps/worker/src/runs/events.ts`
 - Test: `apps/worker/src/runs/events.integration.test.ts`
 
 **Interfaces:**
-- Consumes: `runs`, `runEvents` from `@wakil/db/schema`; `RunEventType`, `RunStepKey`, `runEventChannel` from `@wakil/shared`; a Drizzle transaction client; an ioredis client.
+
+- Consumes: `runs`, `runEvents` from `@wakil/db/schema`; `RunEventType`, `RunStepKey`,
+  `runEventChannel` from `@wakil/shared`; a Drizzle transaction client; an ioredis client.
 - Produces:
-  - `appendRunEvent(tx, input: { runId: string; workspaceId: string; type: RunEventType; stepKey?: RunStepKey; stepIndex?: number }): Promise<{ seq: number; createdAtIso: string }>` — assigns `seq = max(seq)+1` for the run and inserts the row.
-  - `publishRunEvent(redis, runId: string, payload: RunEventPayload): Promise<void>` — publishes JSON to `runEventChannel(runId)`.
+  - `appendRunEvent(tx, input: { runId: string; workspaceId: string; type: RunEventType; stepKey?: RunStepKey; stepIndex?: number }): Promise<{ seq: number; createdAtIso: string }>`
+    — assigns `seq = max(seq)+1` for the run and inserts the row.
+  - `publishRunEvent(redis, runId: string, payload: RunEventPayload): Promise<void>` — publishes
+    JSON to `runEventChannel(runId)`.
 
 - [ ] **Step 1: Write the failing integration test**
 
@@ -616,12 +673,15 @@ it("assigns monotonic per-run seq values", async () => {
 });
 ```
 
-Note: this package needs `@testcontainers/postgresql` as a dev dependency. Add `"@testcontainers/postgresql": "12.0.4"` to `apps/worker/package.json` devDependencies and add a `"test:integration": "vitest run src/**/*.integration.test.ts"` script plus set the base `test` script to exclude integration: `"test": "vitest run --exclude src/**/*.integration.test.ts"`. Run `pnpm install`.
+Note: this package needs `@testcontainers/postgresql` as a dev dependency. Add
+`"@testcontainers/postgresql": "12.0.4"` to `apps/worker/package.json` devDependencies and add a
+`"test:integration": "vitest run src/**/*.integration.test.ts"` script plus set the base `test`
+script to exclude integration: `"test": "vitest run --exclude src/**/*.integration.test.ts"`. Run
+`pnpm install`.
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm --filter @wakil/worker test:integration`
-Expected: FAIL — `appendRunEvent` not found.
+Run: `pnpm --filter @wakil/worker test:integration` Expected: FAIL — `appendRunEvent` not found.
 
 - [ ] **Step 3: Write the module**
 
@@ -630,7 +690,12 @@ Create `apps/worker/src/runs/events.ts`:
 ```typescript
 import type { createDatabaseClient } from "@wakil/db/client";
 import { runEvents } from "@wakil/db/schema";
-import { runEventChannel, type RunEventPayload, type RunEventType, type RunStepKey } from "@wakil/shared";
+import {
+  runEventChannel,
+  type RunEventPayload,
+  type RunEventType,
+  type RunStepKey,
+} from "@wakil/shared";
 import { eq, sql } from "drizzle-orm";
 import type { Redis } from "ioredis";
 
@@ -692,8 +757,7 @@ export async function publishRunEvent(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @wakil/worker test:integration`
-Expected: PASS.
+Run: `pnpm --filter @wakil/worker test:integration` Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -707,13 +771,18 @@ git commit -m "feat(worker): persist run events with per-run seq and Redis publi
 ## Task 5: Worker — run processor and BullMQ consumer
 
 **Files:**
+
 - Create: `apps/worker/src/runs/processor.ts`
 - Modify: `apps/worker/src/index.ts`
 - Test: `apps/worker/src/runs/processor.integration.test.ts`
 
 **Interfaces:**
-- Consumes: `appendRunEvent`, `publishRunEvent` (Task 4); `RUN_STEPS`, `STEP_LIMIT`, `TIME_LIMIT_MS` (Task 3); `runs`, `conversationMessages` from `@wakil/db/schema`; `RunJobData` from `@wakil/shared`.
-- Produces: `processRun(deps: { db: Database; redis: Redis }, job: RunJobData): Promise<RunStatus>` — transitions the run and returns its terminal status.
+
+- Consumes: `appendRunEvent`, `publishRunEvent` (Task 4); `RUN_STEPS`, `STEP_LIMIT`, `TIME_LIMIT_MS`
+  (Task 3); `runs`, `conversationMessages` from `@wakil/db/schema`; `RunJobData` from
+  `@wakil/shared`.
+- Produces: `processRun(deps: { db: Database; redis: Redis }, job: RunJobData): Promise<RunStatus>`
+  — transitions the run and returns its terminal status.
 
 - [ ] **Step 1: Write the failing integration test**
 
@@ -797,11 +866,14 @@ it("runs to succeeded and emits ordered events", async () => {
   const runId = "50000000-0000-4000-8000-000000000010";
   await seedRun(runId);
 
-  const status = await processRun({ db: handle.db, redis }, {
-    runId,
-    workspaceId: ids.workspace,
-    projectId: ids.project,
-  });
+  const status = await processRun(
+    { db: handle.db, redis },
+    {
+      runId,
+      workspaceId: ids.workspace,
+      projectId: ids.project,
+    },
+  );
   expect(status).toBe("succeeded");
 
   const events = await handle.db
@@ -829,11 +901,14 @@ it("cancels cooperatively when cancel_requested_at is set", async () => {
   await seedRun(runId);
   await handle.db.update(runs).set({ cancelRequestedAt: new Date() }).where(eq(runs.id, runId));
 
-  const status = await processRun({ db: handle.db, redis }, {
-    runId,
-    workspaceId: ids.workspace,
-    projectId: ids.project,
-  });
+  const status = await processRun(
+    { db: handle.db, redis },
+    {
+      runId,
+      workspaceId: ids.workspace,
+      projectId: ids.project,
+    },
+  );
   expect(status).toBe("cancelled");
   const run = (await handle.db.select().from(runs).where(eq(runs.id, runId)))[0];
   expect(run?.status).toBe("cancelled");
@@ -842,8 +917,7 @@ it("cancels cooperatively when cancel_requested_at is set", async () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm --filter @wakil/worker test:integration`
-Expected: FAIL — `processRun` not found.
+Run: `pnpm --filter @wakil/worker test:integration` Expected: FAIL — `processRun` not found.
 
 - [ ] **Step 3: Write the processor**
 
@@ -977,12 +1051,13 @@ async function finalize(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @wakil/worker test:integration`
-Expected: PASS (both succeeded and cancelled cases).
+Run: `pnpm --filter @wakil/worker test:integration` Expected: PASS (both succeeded and cancelled
+cases).
 
 - [ ] **Step 5: Wire the BullMQ consumer into the worker entrypoint**
 
-Modify `apps/worker/src/index.ts`. Keep env validation, readiness checks, `--check` early return, and clean shutdown. Replace the idle `await new Promise(...)` block with a BullMQ Worker:
+Modify `apps/worker/src/index.ts`. Keep env validation, readiness checks, `--check` early return,
+and clean shutdown. Replace the idle `await new Promise(...)` block with a BullMQ Worker:
 
 ```typescript
 import { createDatabaseClient } from "@wakil/db";
@@ -1000,40 +1075,41 @@ import { processRun } from "./runs/processor.js";
 After the readiness check passes and the `--check` early return, replace the idle wait with:
 
 ```typescript
-    // BullMQ's blocking connection requires maxRetriesPerRequest: null.
-    const queueConnection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
-    const publisher = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1 });
+// BullMQ's blocking connection requires maxRetriesPerRequest: null.
+const queueConnection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
+const publisher = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1 });
 
-    const worker = new Worker<RunJobData>(
-      RUNS_QUEUE_NAME,
-      async (job) => {
-        const status = await processRun({ db: database, redis: publisher }, job.data);
-        logger.info({ runId: job.data.runId, status }, "run processed");
-      },
-      { connection: queueConnection, concurrency: 4 },
-    );
+const worker = new Worker<RunJobData>(
+  RUNS_QUEUE_NAME,
+  async (job) => {
+    const status = await processRun({ db: database, redis: publisher }, job.data);
+    logger.info({ runId: job.data.runId, status }, "run processed");
+  },
+  { connection: queueConnection, concurrency: 4 },
+);
 
-    worker.on("failed", (job, error) => {
-      logger.error({ runId: job?.data.runId, error: error.name }, "run job failed");
-    });
+worker.on("failed", (job, error) => {
+  logger.error({ runId: job?.data.runId, error: error.name }, "run job failed");
+});
 
-    logger.info({ queue: RUNS_QUEUE_NAME, state: "consuming" }, "worker ready");
+logger.info({ queue: RUNS_QUEUE_NAME, state: "consuming" }, "worker ready");
 
-    await new Promise<void>((resolve) => {
-      process.once("SIGINT", resolve);
-      process.once("SIGTERM", resolve);
-    });
+await new Promise<void>((resolve) => {
+  process.once("SIGINT", resolve);
+  process.once("SIGTERM", resolve);
+});
 
-    await worker.close();
-    await Promise.allSettled([queueConnection.quit(), publisher.quit()]);
+await worker.close();
+await Promise.allSettled([queueConnection.quit(), publisher.quit()]);
 ```
 
-Keep the existing `finally` block that closes `database` and `redis`. Note the original readiness `redis` client stays for the readiness probe; the two new clients are dedicated to BullMQ transport and publishing.
+Keep the existing `finally` block that closes `database` and `redis`. Note the original readiness
+`redis` client stays for the readiness probe; the two new clients are dedicated to BullMQ transport
+and publishing.
 
 - [ ] **Step 6: Typecheck and unit-test the worker**
 
-Run: `pnpm --filter @wakil/worker typecheck && pnpm --filter @wakil/worker test`
-Expected: PASS.
+Run: `pnpm --filter @wakil/worker typecheck && pnpm --filter @wakil/worker test` Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
@@ -1047,9 +1123,11 @@ git commit -m "feat(worker): process runs via BullMQ with bounded state machine 
 ## Task 6: Web — BullMQ producer
 
 **Files:**
+
 - Create: `apps/web/src/server/features/runs/queue.ts`
 
 **Interfaces:**
+
 - Consumes: `RUNS_QUEUE_NAME`, `RunJobData` from `@wakil/shared`; `getWebEnv` from `../../env`.
 - Produces: `enqueueRun(job: RunJobData): Promise<void>`.
 
@@ -1091,8 +1169,7 @@ export async function enqueueRun(job: RunJobData): Promise<void> {
 
 - [ ] **Step 3: Typecheck**
 
-Run: `pnpm --filter @wakil/web typecheck`
-Expected: PASS.
+Run: `pnpm --filter @wakil/web typecheck` Expected: PASS.
 
 - [ ] **Step 4: Commit**
 
@@ -1106,23 +1183,32 @@ git commit -m "feat(web): add BullMQ run producer"
 ## Task 7: Web — run queries and `startRun` mutation
 
 **Files:**
+
 - Create: `apps/web/src/server/features/runs/queries.ts`
 - Create: `apps/web/src/server/features/runs/mutations.ts`
 - Test: `apps/web/src/server/features/runs/mutations.integration.test.ts`
 
 **Interfaces:**
-- Consumes: `enqueueRun` (Task 6); `runs`, `runEvents`, `conversations` from `@wakil/db/schema`; `startRunInputSchema`, `runEventLabel`, `success`, `failure`, `ActionResult` from `@wakil/shared`; `beginIdempotent`, `completeIdempotent`, `hashRequest`, `enforceRateLimit`, `writeAuditLog` (existing services); `Database`, `ServiceContext` from `../types`.
+
+- Consumes: `enqueueRun` (Task 6); `runs`, `runEvents`, `conversations` from `@wakil/db/schema`;
+  `startRunInputSchema`, `runEventLabel`, `success`, `failure`, `ActionResult` from `@wakil/shared`;
+  `beginIdempotent`, `completeIdempotent`, `hashRequest`, `enforceRateLimit`, `writeAuditLog`
+  (existing services); `Database`, `ServiceContext` from `../types`.
 - Produces:
-  - `getLatestRun(db, ctx, projectId): Promise<RunSummary | null>` where `RunSummary = { id: string; status: RunStatus; errorCode: string | null }`.
+  - `getLatestRun(db, ctx, projectId): Promise<RunSummary | null>` where
+    `RunSummary = { id: string; status: RunStatus; errorCode: string | null }`.
   - `getRunEventsAfter(db, ctx, projectId, runId, afterSeq): Promise<RunEventPayload[]>`.
   - `getRunForStream(db, ctx, projectId, runId): Promise<{ status: RunStatus } | null>`.
   - `startRun(deps: { db; redis }, ctx, rawInput): Promise<ActionResult<{ runId: string }>>`.
 
-For the audit action union, extend `AuditEntry.action` and `targetType` in `apps/web/src/server/features/audit/service.ts` to include `"run.started"`, `"run.cancelled"`, and target type `"run"`.
+For the audit action union, extend `AuditEntry.action` and `targetType` in
+`apps/web/src/server/features/audit/service.ts` to include `"run.started"`, `"run.cancelled"`, and
+target type `"run"`.
 
 - [ ] **Step 1: Extend the audit union**
 
-In `apps/web/src/server/features/audit/service.ts`, add `"run.started"` and `"run.cancelled"` to the `action` union and `"run"` to the `targetType` union.
+In `apps/web/src/server/features/audit/service.ts`, add `"run.started"` and `"run.cancelled"` to the
+`action` union and `"run"` to the `targetType` union.
 
 - [ ] **Step 2: Write the queries**
 
@@ -1130,7 +1216,12 @@ Create `apps/web/src/server/features/runs/queries.ts`:
 
 ```typescript
 import { runEvents, runs } from "@wakil/db/schema";
-import { type RunEventPayload, type RunEventType, type RunStatus, type RunStepKey } from "@wakil/shared";
+import {
+  type RunEventPayload,
+  type RunEventType,
+  type RunStatus,
+  type RunStepKey,
+} from "@wakil/shared";
 import { and, asc, desc, eq, gt } from "drizzle-orm";
 
 import { getProjectById } from "../projects/queries";
@@ -1217,13 +1308,22 @@ export async function getRunEventsAfter(
 
 - [ ] **Step 3: Write the failing mutation test**
 
-Create `apps/web/src/server/features/runs/mutations.integration.test.ts`. It stands up PostgreSQL + a fake Redis and a spy `enqueueRun`. Because `startRun` imports `enqueueRun` from `./queue`, pass the enqueue function via `deps` instead of importing it directly (see Step 4 signature). Test body:
+Create `apps/web/src/server/features/runs/mutations.integration.test.ts`. It stands up PostgreSQL +
+a fake Redis and a spy `enqueueRun`. Because `startRun` imports `enqueueRun` from `./queue`, pass
+the enqueue function via `deps` instead of importing it directly (see Step 4 signature). Test body:
 
 ```typescript
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { createDatabaseClient } from "@wakil/db/client";
 import { migrateDatabase } from "@wakil/db/migrate";
-import { conversationMessages, conversations, projects, runs, users, workspaces } from "@wakil/db/schema";
+import {
+  conversationMessages,
+  conversations,
+  projects,
+  runs,
+  users,
+  workspaces,
+} from "@wakil/db/schema";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
@@ -1262,9 +1362,18 @@ beforeAll(async () => {
   const db = handle.db;
   await db.insert(users).values({ id: ids.user, email: "s@example.test" });
   await db.insert(workspaces).values({ id: ids.workspace, name: "W", ownerUserId: ids.user });
-  await db.insert(projects).values({ id: ids.project, workspaceId: ids.workspace, createdByUserId: ids.user, title: "P" });
-  await db.insert(conversations).values({ id: ids.conversation, workspaceId: ids.workspace, projectId: ids.project });
-  await db.insert(conversationMessages).values({ conversationId: ids.conversation, workspaceId: ids.workspace, role: "user", content: "طلب" });
+  await db
+    .insert(projects)
+    .values({ id: ids.project, workspaceId: ids.workspace, createdByUserId: ids.user, title: "P" });
+  await db
+    .insert(conversations)
+    .values({ id: ids.conversation, workspaceId: ids.workspace, projectId: ids.project });
+  await db.insert(conversationMessages).values({
+    conversationId: ids.conversation,
+    workspaceId: ids.workspace,
+    role: "user",
+    content: "طلب",
+  });
 }, 120_000);
 
 afterAll(async () => {
@@ -1274,11 +1383,10 @@ afterAll(async () => {
 
 it("creates a queued run, writes run.queued, and enqueues once", async () => {
   const enqueue = vi.fn(async () => {});
-  const result = await startRun(
-    { db: handle.db, redis: fakeRedis(), enqueueRun: enqueue },
-    ctx,
-    { projectId: ids.project, idempotencyKey: "startrunkey0000001234" },
-  );
+  const result = await startRun({ db: handle.db, redis: fakeRedis(), enqueueRun: enqueue }, ctx, {
+    projectId: ids.project,
+    idempotencyKey: "startrunkey0000001234",
+  });
   expect(result.ok).toBe(true);
   expect(enqueue).toHaveBeenCalledTimes(1);
   const run = (await handle.db.select().from(runs).where(eq(runs.projectId, ids.project)))[0];
@@ -1287,11 +1395,10 @@ it("creates a queued run, writes run.queued, and enqueues once", async () => {
 
 it("rejects a second active run for the same project", async () => {
   const enqueue = vi.fn(async () => {});
-  const result = await startRun(
-    { db: handle.db, redis: fakeRedis(), enqueueRun: enqueue },
-    ctx,
-    { projectId: ids.project, idempotencyKey: "startrunkey0000009999" },
-  );
+  const result = await startRun({ db: handle.db, redis: fakeRedis(), enqueueRun: enqueue }, ctx, {
+    projectId: ids.project,
+    idempotencyKey: "startrunkey0000009999",
+  });
   expect(result.ok).toBe(false);
   if (!result.ok) expect(result.code).toBe("RUN_ALREADY_ACTIVE");
 });
@@ -1299,12 +1406,14 @@ it("rejects a second active run for the same project", async () => {
 
 - [ ] **Step 4: Run it to verify it fails**
 
-Run: `pnpm --filter @wakil/web test:integration`
-Expected: FAIL — `startRun` not found.
+Run: `pnpm --filter @wakil/web test:integration` Expected: FAIL — `startRun` not found.
 
 - [ ] **Step 5: Write the mutation**
 
-Create `apps/web/src/server/features/runs/mutations.ts`. Mirror `projects/mutations.ts` exactly (the `ServiceFailure`, `zodFieldErrors`, `runMutation` helpers). Inject `enqueueRun` through deps for testability; the action layer passes the real one. The one-active-per-project unique index throws on a duplicate insert — catch it as `RUN_ALREADY_ACTIVE`:
+Create `apps/web/src/server/features/runs/mutations.ts`. Mirror `projects/mutations.ts` exactly (the
+`ServiceFailure`, `zodFieldErrors`, `runMutation` helpers). Inject `enqueueRun` through deps for
+testability; the action layer passes the real one. The one-active-per-project unique index throws on
+a duplicate insert — catch it as `RUN_ALREADY_ACTIVE`:
 
 ```typescript
 import { conversations, runEvents, runs } from "@wakil/db/schema";
@@ -1453,12 +1562,13 @@ export async function startRun(
 }
 ```
 
-Add `"run.start"` to `RATE_LIMITS` in `apps/web/src/server/features/rate-limit/service.ts`: `"run.start": { limit: 20, windowSeconds: 60 }`.
+Add `"run.start"` to `RATE_LIMITS` in `apps/web/src/server/features/rate-limit/service.ts`:
+`"run.start": { limit: 20, windowSeconds: 60 }`.
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `pnpm --filter @wakil/web test:integration`
-Expected: PASS (queued+enqueue, and active-run conflict).
+Run: `pnpm --filter @wakil/web test:integration` Expected: PASS (queued+enqueue, and active-run
+conflict).
 
 - [ ] **Step 7: Commit**
 
@@ -1472,12 +1582,15 @@ git commit -m "feat(web): add run queries and tenant-safe startRun mutation"
 ## Task 8: Web — `cancelRun` mutation
 
 **Files:**
+
 - Modify: `apps/web/src/server/features/runs/mutations.ts`
 - Test: `apps/web/src/server/features/runs/mutations.integration.test.ts`
 
 **Interfaces:**
+
 - Consumes: `cancelRunInputSchema` from `@wakil/shared`; existing helpers in the module.
-- Produces: `cancelRun(deps: RunMutationDeps, ctx, rawInput): Promise<ActionResult<{ runId: string }>>`.
+- Produces:
+  `cancelRun(deps: RunMutationDeps, ctx, rawInput): Promise<ActionResult<{ runId: string }>>`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1487,13 +1600,22 @@ Append to `mutations.integration.test.ts`:
 it("marks an active run as cancel-requested", async () => {
   // Insert a fresh running run directly for a second project to avoid the active conflict.
   const p2 = "30000000-0000-4000-8000-000000000022";
-  await handle.db.insert(projects).values({ id: p2, workspaceId: ids.workspace, createdByUserId: ids.user, title: "P2" });
+  await handle.db
+    .insert(projects)
+    .values({ id: p2, workspaceId: ids.workspace, createdByUserId: ids.user, title: "P2" });
   const c2 = "40000000-0000-4000-8000-000000000022";
-  await handle.db.insert(conversations).values({ id: c2, workspaceId: ids.workspace, projectId: p2 });
+  await handle.db
+    .insert(conversations)
+    .values({ id: c2, workspaceId: ids.workspace, projectId: p2 });
   const runId = "50000000-0000-4000-8000-000000000030";
   await handle.db.insert(runs).values({
-    id: runId, workspaceId: ids.workspace, projectId: p2, conversationId: c2,
-    createdByUserId: ids.user, status: "running", startedAt: new Date(),
+    id: runId,
+    workspaceId: ids.workspace,
+    projectId: p2,
+    conversationId: c2,
+    createdByUserId: ids.user,
+    status: "running",
+    startedAt: new Date(),
   });
 
   const result = await cancelRun(
@@ -1511,12 +1633,12 @@ Add `cancelRun` to the import at the top of the test file.
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm --filter @wakil/web test:integration`
-Expected: FAIL — `cancelRun` not exported.
+Run: `pnpm --filter @wakil/web test:integration` Expected: FAIL — `cancelRun` not exported.
 
 - [ ] **Step 3: Write the mutation**
 
-Append to `apps/web/src/server/features/runs/mutations.ts` (add `cancelRunInputSchema` to the imports):
+Append to `apps/web/src/server/features/runs/mutations.ts` (add `cancelRunInputSchema` to the
+imports):
 
 ```typescript
 export async function cancelRun(
@@ -1589,8 +1711,7 @@ Add `"run.cancel": { limit: 20, windowSeconds: 60 }` to `RATE_LIMITS`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @wakil/web test:integration`
-Expected: PASS.
+Run: `pnpm --filter @wakil/web test:integration` Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -1604,13 +1725,18 @@ git commit -m "feat(web): add cooperative cancelRun mutation"
 ## Task 9: Web — server actions, subscriber helper, and SSE route
 
 **Files:**
+
 - Create: `apps/web/src/server/actions/runs.ts`
 - Modify: `apps/web/src/server/redis.ts`
 - Create: `apps/web/app/api/projects/[projectId]/runs/[runId]/events/route.ts`
 
 **Interfaces:**
-- Consumes: `startRun`, `cancelRun` (Tasks 7-8); `enqueueRun` (Task 6); `getRunForStream`, `getRunEventsAfter` (Task 7); `requireAuthorizedContext`, `getDatabase`, `getRedis`; `runEventChannel`, `runEventPayloadSchema` from `@wakil/shared`.
-- Produces: `startRunAction(input)`, `cancelRunAction(input)`; `createRedisSubscriber(): Redis`; the SSE `GET` handler.
+
+- Consumes: `startRun`, `cancelRun` (Tasks 7-8); `enqueueRun` (Task 6); `getRunForStream`,
+  `getRunEventsAfter` (Task 7); `requireAuthorizedContext`, `getDatabase`, `getRedis`;
+  `runEventChannel`, `runEventPayloadSchema` from `@wakil/shared`.
+- Produces: `startRunAction(input)`, `cancelRunAction(input)`; `createRedisSubscriber(): Redis`; the
+  SSE `GET` handler.
 
 - [ ] **Step 1: Add the subscriber helper**
 
@@ -1668,7 +1794,10 @@ import { runEventChannel, runEventPayloadSchema } from "@wakil/shared";
 import { requireAuthorizedContext } from "../../../../../../../src/server/auth/session";
 import { getDatabase } from "../../../../../../../src/server/db";
 import { createRedisSubscriber } from "../../../../../../../src/server/redis";
-import { getRunEventsAfter, getRunForStream } from "../../../../../../../src/server/features/runs/queries";
+import {
+  getRunEventsAfter,
+  getRunForStream,
+} from "../../../../../../../src/server/features/runs/queries";
 
 const TERMINAL = new Set(["run.succeeded", "run.failed", "run.cancelled"]);
 
@@ -1721,9 +1850,7 @@ export async function GET(
       // 2) Replay persisted events (deduplicated by seq on the client).
       const replay = await getRunEventsAfter(db, ctx, projectId, runId, afterSeq);
       for (const event of replay) {
-        controller.enqueue(
-          encoder.encode(`id: ${event.seq}\ndata: ${JSON.stringify(event)}\n\n`),
-        );
+        controller.enqueue(encoder.encode(`id: ${event.seq}\ndata: ${JSON.stringify(event)}\n\n`));
         if (TERMINAL.has(event.type)) {
           close();
           return;
@@ -1742,12 +1869,12 @@ export async function GET(
 }
 ```
 
-Note: the client de-duplicates by `seq`, so a rare replay/live overlap is harmless. Verify the relative import depth (`../` count) matches the file's actual location before running.
+Note: the client de-duplicates by `seq`, so a rare replay/live overlap is harmless. Verify the
+relative import depth (`../` count) matches the file's actual location before running.
 
 - [ ] **Step 4: Typecheck**
 
-Run: `pnpm --filter @wakil/web typecheck`
-Expected: PASS.
+Run: `pnpm --filter @wakil/web typecheck` Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -1761,13 +1888,18 @@ git commit -m "feat(web): add run actions and SSE endpoint with Last-Event-ID re
 ## Task 10: Web — run panel UI and conversation wiring
 
 **Files:**
+
 - Create: `apps/web/app/(app)/projects/[projectId]/run-panel.tsx`
 - Modify: `apps/web/app/(app)/projects/[projectId]/conversation-view.tsx`
 - Modify: `apps/web/app/(app)/projects/[projectId]/page.tsx`
 
 **Interfaces:**
-- Consumes: `startRunAction`, `cancelRunAction`; `runEventLabel`, `runEventPayloadSchema`, `RunStatus`, `RunEventPayload` from `@wakil/shared`; `getLatestRun`, `getRunEventsAfter` (Task 7); `newIdempotencyKey`.
-- Produces: `RunPanel` client component; `ConversationView` gains `initialRun` + `initialEvents` props.
+
+- Consumes: `startRunAction`, `cancelRunAction`; `runEventLabel`, `runEventPayloadSchema`,
+  `RunStatus`, `RunEventPayload` from `@wakil/shared`; `getLatestRun`, `getRunEventsAfter` (Task 7);
+  `newIdempotencyKey`.
+- Produces: `RunPanel` client component; `ConversationView` gains `initialRun` + `initialEvents`
+  props.
 
 - [ ] **Step 1: Load initial run state in the page**
 
@@ -1780,22 +1912,25 @@ import { getLatestRun, getRunEventsAfter } from "../../../../src/server/features
 and before rendering:
 
 ```typescript
-  const latestRun = await getLatestRun(getDatabase(), ctx, projectId);
-  const initialEvents = latestRun
-    ? await getRunEventsAfter(getDatabase(), ctx, projectId, latestRun.id, 0)
-    : [];
+const latestRun = await getLatestRun(getDatabase(), ctx, projectId);
+const initialEvents = latestRun
+  ? await getRunEventsAfter(getDatabase(), ctx, projectId, latestRun.id, 0)
+  : [];
 ```
 
 Pass to `ConversationView`:
 
 ```tsx
-      initialRun={latestRun}
-      initialEvents={initialEvents}
+initialRun = { latestRun };
+initialEvents = { initialEvents };
 ```
 
 - [ ] **Step 2: Write the RunPanel component**
 
-Create `apps/web/app/(app)/projects/[projectId]/run-panel.tsx`. It renders the current run status chip, the ordered real events with Arabic labels, a start button (when no active run), and a cancel button (while active). It subscribes to the SSE endpoint via `EventSource`, de-duplicating by `seq`, and shows `reconnecting` while `EventSource` is in its reconnecting state:
+Create `apps/web/app/(app)/projects/[projectId]/run-panel.tsx`. It renders the current run status
+chip, the ordered real events with Arabic labels, a start button (when no active run), and a cancel
+button (while active). It subscribes to the SSE endpoint via `EventSource`, de-duplicating by `seq`,
+and shows `reconnecting` while `EventSource` is in its reconnecting state:
 
 ```tsx
 "use client";
@@ -1894,7 +2029,10 @@ export function RunPanel({
   if (archived) return null;
 
   return (
-    <section aria-label="تشغيل المشروع" className="mb-4 rounded-lg border border-[var(--wk-border)] p-4">
+    <section
+      aria-label="تشغيل المشروع"
+      className="mb-4 rounded-lg border border-[var(--wk-border)] p-4"
+    >
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="text-sm text-[var(--wk-text-muted)]">التشغيل التقني</span>
         {run ? <span className="text-sm font-medium">{STATUS_LABEL[run.status]}</span> : null}
@@ -1942,11 +2080,15 @@ export function RunPanel({
 }
 ```
 
-Note: confirm `Button` supports a `variant="secondary"` prop and `StatusBanner` accepts `tone`/`className` (they are used in `conversation-view.tsx`). If `Button` has no `variant`, use a plain `Button` for cancel. Confirm the CSS variable names (`--wk-border`, `--wk-text-muted`) against `packages/ui/src/styles/tokens.css`; use whatever the design system actually defines.
+Note: confirm `Button` supports a `variant="secondary"` prop and `StatusBanner` accepts
+`tone`/`className` (they are used in `conversation-view.tsx`). If `Button` has no `variant`, use a
+plain `Button` for cancel. Confirm the CSS variable names (`--wk-border`, `--wk-text-muted`) against
+`packages/ui/src/styles/tokens.css`; use whatever the design system actually defines.
 
 - [ ] **Step 3: Mount the panel in the conversation view**
 
-In `conversation-view.tsx`, extend `ViewProps` with `initialRun` and `initialEvents`, import `RunPanel`, and render it at the top of `<main>` (before the messages list):
+In `conversation-view.tsx`, extend `ViewProps` with `initialRun` and `initialEvents`, import
+`RunPanel`, and render it at the top of `<main>` (before the messages list):
 
 ```tsx
 <RunPanel
@@ -1961,8 +2103,7 @@ Thread the two new props through from `page.tsx` (Step 1).
 
 - [ ] **Step 4: Typecheck and build**
 
-Run: `pnpm --filter @wakil/web typecheck && pnpm --filter @wakil/web build`
-Expected: PASS.
+Run: `pnpm --filter @wakil/web typecheck && pnpm --filter @wakil/web build` Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -1976,41 +2117,61 @@ git commit -m "feat(web): add truthful run panel with live SSE and cancellation"
 ## Task 11: End-to-end mobile coverage and screenshots
 
 **Files:**
+
 - Create: `apps/web/e2e/runs.spec.ts`
 - Create baselines under: `apps/web/e2e/__screenshots__/mobile-390/` and `mobile-430/`
 
 **Interfaces:**
-- Consumes: the existing Playwright config, projects `mobile-390`/`mobile-430`, and the existing auth/seed helpers (mirror an existing spec such as the conversation flow).
+
+- Consumes: the existing Playwright config, projects `mobile-390`/`mobile-430`, and the existing
+  auth/seed helpers (mirror an existing spec such as the conversation flow).
 
 - [ ] **Step 1: Read an existing e2e spec**
 
-Open `apps/web/e2e/` and read one existing spec to reuse the sign-in/seed helpers, the two mobile projects, and the screenshot + overflow/44px assertion helpers. Match its structure exactly.
+Open `apps/web/e2e/` and read one existing spec to reuse the sign-in/seed helpers, the two mobile
+projects, and the screenshot + overflow/44px assertion helpers. Match its structure exactly.
 
 - [ ] **Step 2: Write the run E2E spec**
 
-Create `apps/web/e2e/runs.spec.ts` covering, for both mobile projects: sign in, open a project, click "بدء التشغيل", wait for the ordered real events to appear, and assert the terminal "اكتمل" status. Assert `document.documentElement.scrollWidth <= window.innerWidth`, no console errors, and ≥44px targets for the start/cancel buttons. Add a cancellation case (start, click "إلغاء التشغيل", assert "أُلغي"). Capture screenshots named `run-queued`, `run-running`, `run-succeeded`, `run-cancelled` (and `run-reconnecting` by dropping the network for the SSE request, if the harness supports route abort). Follow the exact `expect(...).toHaveScreenshot(...)` pattern used by the existing spec.
+Create `apps/web/e2e/runs.spec.ts` covering, for both mobile projects: sign in, open a project,
+click "بدء التشغيل", wait for the ordered real events to appear, and assert the terminal "اكتمل"
+status. Assert `document.documentElement.scrollWidth <= window.innerWidth`, no console errors, and
+≥44px targets for the start/cancel buttons. Add a cancellation case (start, click "إلغاء التشغيل",
+assert "أُلغي"). Capture screenshots named `run-queued`, `run-running`, `run-succeeded`,
+`run-cancelled` (and `run-reconnecting` by dropping the network for the SSE request, if the harness
+supports route abort). Follow the exact `expect(...).toHaveScreenshot(...)` pattern used by the
+existing spec.
 
-Because the worker must process the run, the E2E run requires `pnpm dev` infra (PostgreSQL, Redis) and a running worker. Document in the spec header that these tests need the worker consuming the queue (the existing smoke/e2e harness or a spawned worker). If the current e2e harness does not start the worker, spawn it in the spec's global setup with `tsx apps/worker/src/index.ts`, or gate these tests behind the same infra the other integration-style e2e tests use.
+Because the worker must process the run, the E2E run requires `pnpm dev` infra (PostgreSQL, Redis)
+and a running worker. Document in the spec header that these tests need the worker consuming the
+queue (the existing smoke/e2e harness or a spawned worker). If the current e2e harness does not
+start the worker, spawn it in the spec's global setup with `tsx apps/worker/src/index.ts`, or gate
+these tests behind the same infra the other integration-style e2e tests use.
 
 - [ ] **Step 3: Generate and inspect baselines**
 
 Run:
+
 ```bash
 pnpm --filter @wakil/web exec playwright install chromium
 pnpm test:e2e:visual -- --project=mobile-390 --update-snapshots
 pnpm test:e2e:visual -- --project=mobile-430 --update-snapshots
 ```
-Inspect each generated screenshot: Arabic labels not clipped, no horizontal overflow, run panel legible at both widths.
+
+Inspect each generated screenshot: Arabic labels not clipped, no horizontal overflow, run panel
+legible at both widths.
 
 - [ ] **Step 4: Run the suites without update flags**
 
 Run:
+
 ```bash
 pnpm test:e2e -- --project=mobile-390
 pnpm test:e2e -- --project=mobile-430
 pnpm test:e2e:visual -- --project=mobile-390
 pnpm test:e2e:visual -- --project=mobile-430
 ```
+
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -2025,6 +2186,7 @@ git commit -m "test(web): add mobile e2e coverage and baselines for the run back
 ## Task 12: Full milestone gate, changelog, and docs
 
 **Files:**
+
 - Modify: `CHANGELOG.md`
 - Modify: `.env.example` (only if a new env name is introduced — none is expected; verify)
 
@@ -2043,15 +2205,24 @@ pnpm build
 pnpm db:migrate
 pnpm db:migrate
 ```
+
 Expected: every command passes; the second `db:migrate` is a no-op idempotence check.
 
 - [ ] **Step 2: Manual truthful-state check**
 
-With `pnpm dev` running (web + worker), sign in, open a project, click "بدء التشغيل", and confirm: real ordered events appear, the status reaches "اكتمل", a second start while active is refused with the Arabic active-run message, cancel produces "أُلغي", and no assistant message/artifact/fake progress appears. Reload mid-run and confirm events replay from the server (Last-Event-ID) rather than restarting.
+With `pnpm dev` running (web + worker), sign in, open a project, click "بدء التشغيل", and confirm:
+real ordered events appear, the status reaches "اكتمل", a second start while active is refused with
+the Arabic active-run message, cancel produces "أُلغي", and no assistant message/artifact/fake
+progress appears. Reload mid-run and confirm events replay from the server (Last-Event-ID) rather
+than restarting.
 
 - [ ] **Step 3: Update the changelog**
 
-Add a factual entry under `## Unreleased` in `CHANGELOG.md` describing the run backbone (runs/run_events schema and migration, BullMQ producer/consumer, bounded deterministic worker state machine with time/step limits and cooperative cancellation, SSE with Last-Event-ID replay, one-active-run-per-project enforcement, and the truthful mobile run panel). State the exact verification performed.
+Add a factual entry under `## Unreleased` in `CHANGELOG.md` describing the run backbone
+(runs/run_events schema and migration, BullMQ producer/consumer, bounded deterministic worker state
+machine with time/step limits and cooperative cancellation, SSE with Last-Event-ID replay,
+one-active-run-per-project enforcement, and the truthful mobile run panel). State the exact
+verification performed.
 
 - [ ] **Step 4: Commit**
 
@@ -2064,6 +2235,16 @@ git commit -m "docs: record M2 Layer A run backbone in changelog after verificat
 
 ## Self-review notes
 
-- **Spec coverage:** §2 architecture → Tasks 5-6, 9; §3 data model → Task 1; §4 state machine/limits/cancellation → Tasks 3, 5, 8; §5 SSE/replay → Task 9; §6 services/contracts → Tasks 2, 7, 8; §7 UI → Task 10; §8 testing → Tasks 1, 2, 4, 5, 7, 8, 11; §9 non-goals honored (no model/sandbox/artifact deps); §10 verification gate → Task 12.
-- **Type consistency:** `RunJobData`, `RunEventPayload`, `RunStatus`, `RunStepKey`, `RUNS_QUEUE_NAME`, and `runEventChannel` are defined once in Task 2 and consumed unchanged by Tasks 4-10. `appendRunEvent`, `processRun`, `enqueueRun`, `startRun`, `cancelRun`, `getLatestRun`, `getRunEventsAfter`, `getRunForStream` names are used identically across producing and consuming tasks.
-- **Known verification points for the implementer:** exact dependency versions (`bullmq`) must match what pnpm resolves for Node 22; the SSE route's relative import depth; whether `Button` exposes `variant` and the real design-token variable names; and whether the e2e harness already starts the worker. Each is flagged inline at its task.
+- **Spec coverage:** §2 architecture → Tasks 5-6, 9; §3 data model → Task 1; §4 state
+  machine/limits/cancellation → Tasks 3, 5, 8; §5 SSE/replay → Task 9; §6 services/contracts → Tasks
+  2, 7, 8; §7 UI → Task 10; §8 testing → Tasks 1, 2, 4, 5, 7, 8, 11; §9 non-goals honored (no
+  model/sandbox/artifact deps); §10 verification gate → Task 12.
+- **Type consistency:** `RunJobData`, `RunEventPayload`, `RunStatus`, `RunStepKey`,
+  `RUNS_QUEUE_NAME`, and `runEventChannel` are defined once in Task 2 and consumed unchanged by
+  Tasks 4-10. `appendRunEvent`, `processRun`, `enqueueRun`, `startRun`, `cancelRun`, `getLatestRun`,
+  `getRunEventsAfter`, `getRunForStream` names are used identically across producing and consuming
+  tasks.
+- **Known verification points for the implementer:** exact dependency versions (`bullmq`) must match
+  what pnpm resolves for Node 22; the SSE route's relative import depth; whether `Button` exposes
+  `variant` and the real design-token variable names; and whether the e2e harness already starts the
+  worker. Each is flagged inline at its task.

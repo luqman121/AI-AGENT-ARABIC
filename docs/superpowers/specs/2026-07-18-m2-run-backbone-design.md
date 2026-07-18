@@ -73,20 +73,20 @@ defaults. Non-obvious constraints are documented beside the Drizzle schema.
 
 ### `runs`
 
-| Column                | Type / constraint                                                                  |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| `id`                  | uuid pk, default random                                                             |
-| `workspace_id`        | uuid not null → `workspaces.id` on delete cascade                                   |
-| `project_id`          | uuid not null                                                                       |
-| `conversation_id`     | uuid not null                                                                       |
-| `status`              | text not null, CHECK ∈ (`queued`,`running`,`succeeded`,`failed`,`cancelled`)        |
-| `created_by`          | uuid not null → users                                                               |
-| `error_code`          | text null (stable app error code on failure only)                                  |
-| `step_count`          | integer not null default 0                                                          |
-| `cancel_requested_at` | timestamptz null                                                                    |
-| `created_at`          | timestamptz not null default now()                                                 |
-| `started_at`          | timestamptz null                                                                    |
-| `finished_at`         | timestamptz null                                                                    |
+| Column                | Type / constraint                                                            |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `id`                  | uuid pk, default random                                                      |
+| `workspace_id`        | uuid not null → `workspaces.id` on delete cascade                            |
+| `project_id`          | uuid not null                                                                |
+| `conversation_id`     | uuid not null                                                                |
+| `status`              | text not null, CHECK ∈ (`queued`,`running`,`succeeded`,`failed`,`cancelled`) |
+| `created_by`          | uuid not null → users                                                        |
+| `error_code`          | text null (stable app error code on failure only)                            |
+| `step_count`          | integer not null default 0                                                   |
+| `cancel_requested_at` | timestamptz null                                                             |
+| `created_at`          | timestamptz not null default now()                                           |
+| `started_at`          | timestamptz null                                                             |
+| `finished_at`         | timestamptz null                                                             |
 
 Constraints and indexes:
 
@@ -94,21 +94,22 @@ Constraints and indexes:
   `(conversation_id, workspace_id)` → `conversations (id, workspace_id)` on delete cascade. This
   prevents a run from crossing tenant or project ownership, mirroring the `conversations` pattern.
 - **Partial unique index** `runs_one_active_per_project` on `(project_id)`
-  `WHERE status IN ('queued','running')` — enforces one active run per project at the database level.
+  `WHERE status IN ('queued','running')` — enforces one active run per project at the database
+  level.
 - Index `(workspace_id, project_id, created_at)` for tenant-scoped listing.
 - `unique (id, workspace_id)` so `run_events` can reference the pair.
 
 ### `run_events` (append-only ledger)
 
-| Column         | Type / constraint                                                                            |
-| -------------- | -------------------------------------------------------------------------------------------- |
-| `id`           | uuid pk, default random                                                                      |
-| `workspace_id` | uuid not null → `workspaces.id` on delete cascade                                             |
-| `run_id`       | uuid not null                                                                                 |
-| `seq`          | integer not null (monotonic per-run sequence, starts at 1)                                    |
+| Column         | Type / constraint                                                                                           |
+| -------------- | ----------------------------------------------------------------------------------------------------------- |
+| `id`           | uuid pk, default random                                                                                     |
+| `workspace_id` | uuid not null → `workspaces.id` on delete cascade                                                           |
+| `run_id`       | uuid not null                                                                                               |
+| `seq`          | integer not null (monotonic per-run sequence, starts at 1)                                                  |
 | `type`         | text not null, CHECK ∈ (`run.queued`,`run.started`,`run.step`,`run.succeeded`,`run.failed`,`run.cancelled`) |
-| `data`         | jsonb not null default `'{}'` (safe metadata only: step index, label key — never request text or content) |
-| `created_at`   | timestamptz not null default now()                                                           |
+| `data`         | jsonb not null default `'{}'` (safe metadata only: step index, label key — never request text or content)   |
+| `created_at`   | timestamptz not null default now()                                                                          |
 
 Constraints and indexes:
 
@@ -174,9 +175,9 @@ PostgreSQL before being published to Redis.
   order with Arabic labels mapped from the event type and step label key, a status chip, and a
   cancel button.
 - Truthful states: `queued`, `running`, `succeeded`, `failed` (Arabic error message), `cancelled`,
-  `reconnecting` (shown only while an SSE reconnect is actually pending), and `offline`. No assistant
-  reply, no artifact, no fabricated progress. The `conversation_messages.role = 'user'` CHECK stays
-  unchanged.
+  `reconnecting` (shown only while an SSE reconnect is actually pending), and `offline`. No
+  assistant reply, no artifact, no fabricated progress. The `conversation_messages.role = 'user'`
+  CHECK stays unchanged.
 - Server Components for initial reads; client components only for the start/cancel actions, the SSE
   subscription, and pending/connectivity state. Route-level `loading`/`error` cover real states.
 
@@ -191,8 +192,9 @@ PostgreSQL before being published to Redis.
   migration is tested against clean and existing databases.
 - **E2E (Playwright `mobile-390` and `mobile-430`):** start a run, observe the real event stream,
   each terminal state, cancel, reconnecting (drop the SSE connection), and offline. Screenshots for
-  `run-queued`, `run-running`, `run-succeeded`, `run-failed`, `run-cancelled`, and `run-reconnecting`
-  in both projects, with the standard RTL, no-horizontal-overflow, and ≥44px assertions.
+  `run-queued`, `run-running`, `run-succeeded`, `run-failed`, `run-cancelled`, and
+  `run-reconnecting` in both projects, with the standard RTL, no-horizontal-overflow, and ≥44px
+  assertions.
 
 ## 9. Explicit non-goals (Layer A)
 

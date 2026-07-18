@@ -30,7 +30,7 @@
     "db:migrate": "tsx src/migrate.ts",
     "lint": "eslint .",
     "test": "vitest run --exclude tests/**/*.integration.test.ts",
-    "test:integration": "vitest run tests/**/*.integration.test.ts",
+    "test:integration": "vitest run tests",
     "test:integration:migrations": "vitest run tests/migrations.integration.test.ts",
     "typecheck": "tsc --noEmit"
   },
