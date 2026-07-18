@@ -32,9 +32,8 @@ test("authenticated screens pass Axe WCAG 2 A/AA checks", async ({ page }) => {
 
   await expectNoViolations(page); // /new
 
-  await page.getByLabel("اسم المشروع").fill("مشروع الوصول");
-  await page.getByLabel("اوصف طلبك").fill("اختبار الوصول للمحادثة");
-  await page.getByRole("button", { name: "إنشاء المشروع" }).click();
+  await page.getByLabel("اوصف فكرتك").fill("اختبار الوصول للمحادثة");
+  await page.getByRole("button", { name: "إرسال الطلب" }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
   await expectNoViolations(page); // conversation
 
@@ -55,15 +54,12 @@ test("keyboard-only create flow with visible focus", async ({ page }) => {
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "تخطَّ إلى المحتوى" })).toBeFocused();
 
-  // Reach the title field, fill, reach the request field, fill, submit.
-  await page.getByLabel("اسم المشروع").focus();
-  await expect(page.getByLabel("اسم المشروع")).toBeFocused();
-  await page.keyboard.type("مشروع لوحة المفاتيح");
-  await page.keyboard.press("Tab");
-  await expect(page.getByLabel("اوصف طلبك")).toBeFocused();
+  // Reach the idea field, fill, reach the send button, submit.
+  await page.getByLabel("اوصف فكرتك").focus();
+  await expect(page.getByLabel("اوصف فكرتك")).toBeFocused();
   await page.keyboard.type("أنشئ جدولًا للمصروفات الشهرية");
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "إنشاء المشروع" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "إرسال الطلب" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
 

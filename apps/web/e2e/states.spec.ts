@@ -6,6 +6,9 @@ test.describe.configure({ mode: "serial" });
 
 const email = uniqueEmail("states");
 const seededTitle = "موقع مقهى الروشن";
+// A single idea that still leads with the seeded title and mentions the
+// searchable "المقهى" term, since one composer now derives both.
+const seededRequest = "موقع مقهى الروشن: قائمة المشروبات وساعات عمل المقهى";
 
 test("auth states @visual", async ({ page }, testInfo) => {
   const consoleWatcher = watchConsole(page);
@@ -28,9 +31,8 @@ test("projects empty, create, and conversation states @visual", async ({ page },
 
   await captureState(page, testInfo, "create-default");
 
-  // Server-side validation error keeps the entered data.
-  await page.getByLabel("اسم المشروع").fill("مشروع بلا طلب");
-  await page.getByRole("button", { name: "إنشاء المشروع" }).click();
+  // Server-side validation error when nothing was typed yet.
+  await page.getByRole("button", { name: "إرسال الطلب" }).click();
   await expect(page.getByText("اكتب طلبك أولًا.")).toBeVisible();
   await captureState(page, testInfo, "create-validation-error");
 
@@ -38,18 +40,18 @@ test("projects empty, create, and conversation states @visual", async ({ page },
   await expect(page.getByText("ما عندك مشاريع بعد")).toBeVisible();
   await captureState(page, testInfo, "projects-empty");
 
-  // Seed real data through the product itself.
+  // Seed real data through the product itself: one idea, one submit.
   await page.goto("/new");
-  await page.getByLabel("اسم المشروع").fill(seededTitle);
-  await page.getByLabel("اوصف طلبك").fill("موقع بسيط للمقهى مع قائمة المشروبات وساعات العمل");
-  await page.getByRole("button", { name: "إنشاء المشروع" }).click();
+  await page.getByLabel("اوصف فكرتك").fill(seededRequest);
+  await page.getByRole("button", { name: "إرسال الطلب" }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { level: 1, name: seededTitle })).toBeVisible();
+  // The plan starts thinking immediately — no manual "start" tap needed.
   await expect(
     page
       .getByRole("region", { name: "إعداد خطة المشروع" })
-      .getByRole("button", { name: "إعداد الخطة" }),
-  ).toBeVisible();
+      .getByRole("button", { name: "إلغاء التشغيل" }),
+  ).toBeVisible({ timeout: 15_000 });
   await captureState(page, testInfo, "conversation-default");
 
   await page.getByRole("button", { name: "خيارات المشروع" }).click();

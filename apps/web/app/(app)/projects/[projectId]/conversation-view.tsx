@@ -39,6 +39,8 @@ export type ConversationMessage = {
 
 type ViewProps = {
   archived: boolean;
+  /** True only right after creation, when the page URL still carries `?autostart=1`. */
+  autoStart: boolean;
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
   messages: ConversationMessage[];
@@ -48,6 +50,7 @@ type ViewProps = {
 
 export function ConversationView({
   archived,
+  autoStart,
   initialEvents,
   initialRun,
   messages,
@@ -217,6 +220,7 @@ export function ConversationView({
         ) : null}
         <RunPanel
           archived={archived}
+          autoStart={autoStart}
           initialEvents={initialEvents}
           initialRun={initialRun}
           projectId={projectId}

@@ -51,6 +51,15 @@ describe("createProjectInputSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts a request with no title at all — the server derives one", () => {
+    const result = createProjectInputSchema.safeParse({
+      request: "أريد موقعًا بسيطًا لمطعمي مع قائمة الطعام",
+      idempotencyKey: validKey,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.title).toBeUndefined();
+  });
 });
 
 describe("idempotencyKeySchema", () => {

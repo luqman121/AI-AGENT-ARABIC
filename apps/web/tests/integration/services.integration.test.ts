@@ -77,6 +77,32 @@ describe("project lifecycle", () => {
     expect(audit[0]?.metadata).toMatchObject({ titleLength: 15 });
   });
 
+  it("derives a title from the request when the user only gives an idea", async () => {
+    const request = "أنشئ متجرًا إلكترونيًا لبيع القهوة المختصة";
+    const result = await createProject(deps(), tenant, {
+      idempotencyKey: key("create-derive-1"),
+      request,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const conversation = await getProjectConversation(harness.db, tenant, result.data.projectId);
+    expect(conversation?.project.title).toBe(request);
+  });
+
+  it("truncates a derived title at a word boundary for a long request", async () => {
+    const request = `${"أحتاج ".repeat(30)}موقعًا متكاملاً`;
+    const result = await createProject(deps(), tenant, {
+      idempotencyKey: key("create-derive-2"),
+      request,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const conversation = await getProjectConversation(harness.db, tenant, result.data.projectId);
+    expect(conversation?.project.title).toBe(`${"أحتاج ".repeat(13).trimEnd()}…`);
+  });
+
   it("lists, searches by title and request text, renames, and archives within the workspace", async () => {
     const created = await createProject(deps(), tenant, {
       idempotencyKey: key("create-2"),

@@ -38,6 +38,17 @@ function zodFieldErrors(error: z.ZodError): Record<string, string> {
   return fields;
 }
 
+/** Falls back to the request's leading text (word-boundary truncated) when no title was given. */
+function deriveProjectTitle(request: string): string {
+  const normalized = request.replace(/\s+/g, " ").trim();
+  const MAX_LENGTH = 80;
+  if (normalized.length <= MAX_LENGTH) return normalized;
+  const truncated = normalized.slice(0, MAX_LENGTH);
+  const lastSpace = truncated.lastIndexOf(" ");
+  const base = lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated;
+  return `${base}…`;
+}
+
 async function runMutation<T>(operation: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
     return await operation();
@@ -55,6 +66,7 @@ export async function createProject(
   const parsed = createProjectInputSchema.safeParse(rawInput);
   if (!parsed.success) return failure("VALIDATION_FAILED", zodFieldErrors(parsed.error));
   const input = parsed.data;
+  const title = input.title ?? deriveProjectTitle(input.request);
 
   const limited = await enforceRateLimit(deps.redis, ctx.userId, "project.create");
   if (limited) return limited;
@@ -62,7 +74,7 @@ export async function createProject(
   const scope = {
     key: input.idempotencyKey,
     operation: "project.create",
-    requestHash: hashRequest("project.create", { request: input.request, title: input.title }),
+    requestHash: hashRequest("project.create", { request: input.request, title }),
     userId: ctx.userId,
     workspaceId: ctx.workspaceId,
   };
@@ -82,7 +94,7 @@ export async function createProject(
           .insert(projects)
           .values({
             createdByUserId: ctx.userId,
-            title: input.title,
+            title,
             workspaceId: ctx.workspaceId,
           })
           .returning({ id: projects.id })
@@ -107,7 +119,7 @@ export async function createProject(
       await writeAuditLog(tx, {
         action: "project.created",
         actorUserId: ctx.userId,
-        metadata: { requestLength: input.request.length, titleLength: input.title.length },
+        metadata: { requestLength: input.request.length, titleLength: title.length },
         targetId: project.id,
         targetType: "project",
         workspaceId: ctx.workspaceId,

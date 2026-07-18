@@ -8,7 +8,8 @@ import {
 } from "./fields.js";
 
 export const createProjectInputSchema = z.object({
-  title: projectTitleSchema,
+  /** Omitted when the user only describes their idea; the server derives one. */
+  title: projectTitleSchema.optional(),
   request: requestTextSchema,
   idempotencyKey: idempotencyKeySchema,
 });

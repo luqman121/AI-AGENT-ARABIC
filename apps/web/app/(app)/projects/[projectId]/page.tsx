@@ -21,10 +21,13 @@ export async function generateMetadata({
 
 export default async function ProjectConversationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ autostart?: string }>;
 }) {
   const { projectId } = await params;
+  const { autostart } = await searchParams;
   const ctx = await requireAuthorizedContext();
 
   // A missing project and a cross-tenant project produce the same 404.
@@ -39,6 +42,7 @@ export default async function ProjectConversationPage({
   return (
     <ConversationView
       archived={conversation.project.status === "archived"}
+      autoStart={autostart === "1" && !latestRun}
       initialEvents={initialEvents}
       initialRun={latestRun}
       messages={conversation.messages.map((message) => ({

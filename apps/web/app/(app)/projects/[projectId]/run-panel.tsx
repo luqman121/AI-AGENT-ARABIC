@@ -8,7 +8,16 @@ import {
   type RunStatus,
 } from "@wakil/shared";
 import { Button, StatusBanner } from "@wakil/ui";
-import { Activity, Ban, Check, CircleCheck, CircleX, Clock3, type LucideIcon } from "lucide-react";
+import {
+  Activity,
+  Ban,
+  BrainCircuit,
+  Check,
+  CircleCheck,
+  CircleX,
+  Clock3,
+  type LucideIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
@@ -36,12 +45,20 @@ const STATUS: Record<RunStatus, { icon: LucideIcon; label: string; className: st
 
 export type RunPanelProps = {
   archived: boolean;
+  /** Fires the first planning run once, right after project creation. */
+  autoStart: boolean;
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
   projectId: string;
 };
 
-export function RunPanel({ archived, initialEvents, initialRun, projectId }: RunPanelProps) {
+export function RunPanel({
+  archived,
+  autoStart,
+  initialEvents,
+  initialRun,
+  projectId,
+}: RunPanelProps) {
   const router = useRouter();
   const [run, setRun] = useState<RunPanelSummary | null>(initialRun);
   const [events, setEvents] = useState<RunEventPayload[]>(initialEvents);
@@ -51,6 +68,7 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
   const [cancelKey, setCancelKey] = useState(newIdempotencyKey);
   const [pending, startTransition] = useTransition();
   const seenRef = useRef(new Set(initialEvents.map((event) => event.seq)));
+  const autoStartedRef = useRef(false);
 
   const runId = run?.id;
   const isActive = run !== null && ACTIVE_STATUSES.has(run.status);
@@ -109,6 +127,15 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
 
     return () => source.close();
   }, [applyEvent, isActive, projectId, runId]);
+
+  useEffect(() => {
+    if (!autoStart || archived || run || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    router.replace(`/projects/${projectId}`, { scroll: false });
+    start();
+    // Fires once: the guard ref, not the dependency list, decides re-entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, archived, run]);
 
   function start(): void {
     if (pending) return;
@@ -210,7 +237,7 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
           <span
             className={`flex shrink-0 items-center gap-1.5 rounded-full bg-overlay px-3 py-1.5 text-xs font-bold ${status.className}`}
           >
-            <StatusIcon aria-hidden className="size-4" />
+            <StatusIcon aria-hidden className={`size-4${isActive ? " animate-pulse" : ""}`} />
             {status.label}
           </span>
         ) : null}
@@ -235,6 +262,18 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
             </li>
           ))}
         </ol>
+      ) : isActive ? (
+        <div
+          aria-live="polite"
+          className="my-4 flex items-center gap-3 rounded-md border border-line bg-surface-2 p-3"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-fg-accent">
+            <BrainCircuit aria-hidden className="size-5 animate-pulse" />
+          </span>
+          <p className="text-sm leading-6 text-fg">
+            {executionMode ? "وكيل يجهّز بيئة التنفيذ الآن…" : "وكيل يفكّر في طلبك الآن…"}
+          </p>
+        </div>
       ) : run ? (
         <p className="my-4 text-sm leading-6 text-fg-2">بانتظار أول تحديث محفوظ من العامل.</p>
       ) : (

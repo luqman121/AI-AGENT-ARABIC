@@ -11,7 +11,7 @@ export default function NewProjectPage() {
   return (
     <>
       <AppHeader title="وكيل" />
-      <PageShell>
+      <PageShell withBottomNav={false} className="pb-[calc(160px+env(safe-area-inset-bottom))]">
         <div className="flex flex-col gap-2 py-6">
           <h2 className="text-3xl font-bold leading-snug text-fg">وش تبي تنجز اليوم؟</h2>
           <p className="text-base leading-7 text-fg-2">

@@ -5,7 +5,10 @@ import { signIn, uniqueEmail, watchConsole } from "./helpers";
 test.describe.configure({ mode: "serial" });
 
 const email = uniqueEmail("journey");
-const projectTitle = "موقع مطعم البيت";
+// A short request becomes the title verbatim: the server derives one when
+// the user only gives their idea through the single composer box.
+const request = "أريد موقعًا بسيطًا لمطعمي مع قائمة الطعام وأرقام التواصل";
+const projectTitle = request;
 const renamedTitle = "موقع مطعم البيت الجديد";
 
 test("complete M1 journey: sign in, create, append, rename, search, archive, persist", async ({
@@ -16,12 +19,9 @@ test("complete M1 journey: sign in, create, append, rename, search, archive, per
   // Sign in through a real Mailpit magic link.
   await signIn(page, email);
 
-  // Create a database-backed project.
-  await page.getByLabel("اسم المشروع").fill(projectTitle);
-  await page
-    .getByLabel("اوصف طلبك")
-    .fill("أريد موقعًا بسيطًا لمطعمي مع قائمة الطعام وأرقام التواصل");
-  await page.getByRole("button", { name: "إنشاء المشروع" }).click();
+  // Create a database-backed project from a single idea.
+  await page.getByLabel("اوصف فكرتك").fill(request);
+  await page.getByRole("button", { name: "إرسال الطلب" }).click();
 
   // Lands in the saved conversation.
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);

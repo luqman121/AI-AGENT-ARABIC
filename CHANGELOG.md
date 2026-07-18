@@ -4,6 +4,25 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Single-composer create flow and auto-started planning run
+
+- Replaced the two-field `/new` form (separate title and request) with the single request
+  composer, matching the approved design system's documented "request composer is the visual
+  hero of `/new`" rule. The server now derives a project title from the request text
+  (word-boundary truncated) when the client sends none.
+- The first planning run now starts automatically right after project creation instead of
+  requiring a manual "إعداد الخطة" tap, so the conversation shows real, persisted execution
+  progress immediately after the user submits their idea. Starting the website execution run
+  remains an explicit, separate user action.
+- Added a truthful "thinking" state to the run panel — an animated icon plus Arabic status text —
+  shown only while a real run is queued or running with no persisted step yet; it is replaced by
+  the real step checklist as soon as persisted events arrive. Respects `prefers-reduced-motion`
+  via the existing global rule.
+- Updated Playwright coverage (journey, run states, accessibility, offline-mutation specs) and
+  added unit/integration coverage for the derived-title behavior. Verified `pnpm lint`,
+  `pnpm typecheck`, `pnpm test`, `pnpm format:check`, and `pnpm build`; Playwright/Testcontainers
+  verification requires a Docker daemon that was not available in this session and was not run.
+
 ### M3 — Production Release Readiness
 
 - Added separate digest-pinned, non-root production images for the Next.js web service, BullMQ

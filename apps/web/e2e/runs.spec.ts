@@ -52,15 +52,18 @@ test.afterAll(async () => {
   queueRedis.disconnect();
 });
 
+/**
+ * One idea, one submit. The first planning run auto-starts right after
+ * creation, so callers that need to observe a specific run state must pause
+ * the queue (and/or set up SSE route interception) before calling this.
+ */
 async function createProject(
   page: Page,
-  title: string,
   request = "أنشئ صفحة تعريفية واضحة مع معلومات التواصل",
 ): Promise<void> {
   await signIn(page, uniqueEmail("run"));
-  await page.getByLabel("اسم المشروع").fill(title);
-  await page.getByLabel("اوصف طلبك").fill(request);
-  await page.getByRole("button", { name: "إنشاء المشروع" }).click();
+  await page.getByLabel("اوصف فكرتك").fill(request);
+  await page.getByRole("button", { name: "إرسال الطلب" }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
 }
 
@@ -70,7 +73,6 @@ function runPanel(page: Page) {
 
 async function expectSuccessfulRun(page: Page): Promise<void> {
   const panel = runPanel(page);
-  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
   await expect(panel.getByText("اكتمل", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(
     panel.getByRole("list", { name: "سجل خطوات التشغيل" }).getByRole("listitem"),
@@ -208,7 +210,7 @@ async function holdWorkerAtValidation(): Promise<() => Promise<void>> {
 
 test("completes a real run with ordered persisted events", async ({ page }) => {
   const consoleWatcher = watchConsole(page);
-  await createProject(page, "موقع التشغيل المكتمل");
+  await createProject(page);
 
   await expectSuccessfulRun(page);
   await assertMobileQuality(page);
@@ -217,7 +219,7 @@ test("completes a real run with ordered persisted events", async ({ page }) => {
 
 test("private artifact preview and download @visual", async ({ page }, testInfo: TestInfo) => {
   const consoleWatcher = watchConsole(page);
-  await createProject(page, "معاينة الموقع المحفوظ");
+  await createProject(page);
   await expectSuccessfulRun(page);
   const projectId = page.url().match(/projects\/([0-9a-f-]{36})/)?.[1];
   if (!projectId) throw new Error("Project ID missing from URL");
@@ -236,11 +238,12 @@ test("private artifact preview and download @visual", async ({ page }, testInfo:
 
 test("queued, running, and succeeded run states @visual", async ({ page }, testInfo: TestInfo) => {
   const consoleWatcher = watchConsole(page);
-  await createProject(page, "حالات تشغيل الموقع");
+  // The planning run auto-starts on creation, so the queue must already be
+  // paused for it to land — and stay — in the queued state to capture.
+  await runQueue.pause();
+  await createProject(page);
   const panel = runPanel(page);
 
-  await runQueue.pause();
-  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
   await expect(panel.getByText("في قائمة الانتظار", { exact: true }).first()).toBeVisible();
   await captureState(page, testInfo, "run-queued");
 
@@ -264,12 +267,13 @@ test("queued, running, and succeeded run states @visual", async ({ page }, testI
 });
 
 test("reconnecting and cancelled run states @visual", async ({ page }, testInfo: TestInfo) => {
-  await createProject(page, "إلغاء تشغيل التقرير");
-  const panel = runPanel(page);
-
+  // Both the queue pause and the SSE route abort must be in place before
+  // creation, since the planning run auto-starts as soon as it lands.
   await runQueue.pause();
   await page.route("**/api/projects/*/runs/*/events", (route) => route.abort("failed"));
-  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
+  await createProject(page);
+  const panel = runPanel(page);
+
   await expect(panel.getByText("جارٍ إعادة الاتصال لمتابعة التحديثات المحفوظة…")).toBeVisible({
     timeout: 15_000,
   });
@@ -288,9 +292,8 @@ test("reconnecting and cancelled run states @visual", async ({ page }, testInfo:
 });
 
 test("refused run state @visual", async ({ page }, testInfo: TestInfo) => {
-  await createProject(page, "طلب يحتاج إلى تعديل", "اختبر حالة الرفض");
+  await createProject(page, "اختبر حالة الرفض");
   const panel = runPanel(page);
-  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
   await expect(panel.getByText("تعذّر إعداد خطة مناسبة لهذا الطلب.", { exact: false })).toBeVisible(
     {
       timeout: 20_000,
@@ -300,9 +303,8 @@ test("refused run state @visual", async ({ page }, testInfo: TestInfo) => {
 });
 
 test("provider failure state @visual", async ({ page }, testInfo: TestInfo) => {
-  await createProject(page, "تعذّر مزود الخطة", "اختبر فشل المزود");
+  await createProject(page, "اختبر فشل المزود");
   const panel = runPanel(page);
-  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
   await expect(panel.getByText("تعذّر إعداد الخطة. يمكنك بدء تشغيل جديد.")).toBeVisible({
     timeout: 20_000,
   });
@@ -310,9 +312,8 @@ test("provider failure state @visual", async ({ page }, testInfo: TestInfo) => {
 });
 
 test("limit exceeded state @visual", async ({ page }, testInfo: TestInfo) => {
-  await createProject(page, "خطة تتجاوز الحد", "اختبر حد الاستخدام");
+  await createProject(page, "اختبر حد الاستخدام");
   const panel = runPanel(page);
-  await panel.getByRole("button", { name: "إعداد الخطة" }).click();
   await expect(
     panel.getByText("توقف إعداد الخطة عند حدّ الاستخدام المسموح.", { exact: false }),
   ).toBeVisible({
