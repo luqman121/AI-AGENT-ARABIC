@@ -4,6 +4,33 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### M2 Layer A — Run Backbone
+
+Added the durable, tenant-scoped execution backbone without model providers, generated code, sandbox
+execution, artifacts, or fabricated AI progress.
+
+- **Durable lifecycle:** `runs` and append-only `run_events` tables with tenant-preserving foreign
+  keys, ordered per-run sequence numbers, status constraints, and a database-enforced one-active-run
+  limit per project.
+- **Typed queue boundary:** shared Zod run/action/event contracts and BullMQ job payloads; the web
+  producer deduplicates by `runId`, and enqueue retries recover safely from a committed run whose
+  first Redis delivery failed.
+- **Bounded worker:** the separate worker consumes the runs queue, executes three real deterministic
+  system checks under step/time limits, persists every event before Redis publication, and supports
+  cooperative cancellation.
+- **Tenant-safe web flow:** authenticated, rate-limited, idempotent start/cancel actions; foreign
+  project/run IDs return the same not-found result and never reveal row existence.
+- **Replayable realtime:** a Node.js SSE route validates IDs, disables caching/buffering, supports
+  `Last-Event-ID`, buffers subscribe/replay races, de-duplicates by sequence, and closes on terminal
+  events. PostgreSQL remains the replay source of truth.
+- **Truthful Arabic mobile UI:** an RTL run panel shows only persisted technical events, including
+  queued, running, reconnecting, cancellation-requested, cancelled, failed, and succeeded states. It
+  explicitly states that Layer A does not generate AI content.
+- **Verification:** Node.js 22.23.1; formatting, lint, strict typecheck, unit tests, 4 migration
+  integration tests, 25 web integration tests, 3 worker integration tests, production build, two
+  consecutive local migrations, 11/11 non-visual Playwright tests at each mobile viewport, and 16/16
+  visual tests across `390x844` and `430x932`. All changed primary screenshots were inspected.
+
 ### Verification maintenance
 
 - Fixed the database integration-test command so the root-level migration suite is collected by the

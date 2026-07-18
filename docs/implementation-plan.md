@@ -1,23 +1,27 @@
 # Wakil M0-M2 Layer A Implementation Plan
 
-**Status:** M0 and M1 are implemented. M2 Layer A was explicitly authorized by the user on
-2026-07-18. Tasks 1-5 are implemented on the current branch; execution resumes at Task 6.
+**Status:** M0, M1, and M2 Layer A are implemented and locally verified. M2 Layer A was explicitly
+authorized by the user and completed on 2026-07-18. Layers B and C remain out of scope.
 
-## Current continuation check (2026-07-18)
+## M2 Layer A completion evidence (2026-07-18)
 
-The repository verification gate was restored before M2 continuation. The active implementation
-scope is the reviewed task-by-task plan at `docs/superpowers/plans/2026-07-18-m2-run-backbone.md`.
+The completed implementation follows the reviewed task-by-task plan at
+`docs/superpowers/plans/2026-07-18-m2-run-backbone.md`.
 
-- **Scope:** complete Tasks 6-12: web queue producer, tenant-safe run services and actions, SSE
-  replay/live delivery, truthful mobile UI, mobile E2E coverage, and the final milestone gate.
-- **Files:** only the files enumerated by Tasks 6-12 in the reviewed M2 Layer A plan, plus required
-  factual updates to this document and `CHANGELOG.md`.
+- **Delivered:** durable schema/events, shared contracts, BullMQ producer/consumer, bounded worker,
+  tenant-safe run services/actions, SSE replay/live delivery, truthful mobile UI, and mobile E2E
+  coverage.
+- **Files:** changes remained within the files enumerated by Tasks 1-12 in the reviewed plan, plus
+  factual source-of-truth and changelog updates.
 - **Tests:** `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
   `pnpm test:integration:migrations`, `pnpm test:integration`, and `pnpm build`.
 - **Assumptions:** ignored `.superpowers/` files are local execution state; Redis is transport only;
   the deterministic worker steps describe real persisted system work and never claim AI output.
 - **Acceptance:** all Layer A behavior and gates in `GOAL.md` and the reviewed plan pass; no model,
   sandbox, artifact, or publishing behavior is added.
+- **Verification:** all repository gates passed, both consecutive local migrations succeeded, the
+  full non-visual suite passed 11/11 tests at each mobile viewport, and the visual suite passed
+  16/16 tests across both viewports. Run and affected conversation screenshots were inspected.
 
 ## 1. Sources and current repository state
 

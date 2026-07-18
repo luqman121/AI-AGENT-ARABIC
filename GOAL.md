@@ -41,6 +41,9 @@ M0 and M1 are complete. Implement **M2 Layer A — Run Backbone only**, as appro
 - `docs/superpowers/specs/2026-07-18-m2-run-backbone-design.md`
 - `docs/superpowers/plans/2026-07-18-m2-run-backbone.md`
 
+**Status:** M2 Layer A was completed and locally verified on 2026-07-18. Any Layer B or Layer C work
+requires a new reviewed scope.
+
 ### M0 — Foundation
 
 - pnpm/Turborepo monorepo structure.

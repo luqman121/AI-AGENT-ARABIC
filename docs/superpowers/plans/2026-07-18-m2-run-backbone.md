@@ -1,5 +1,8 @@
 # M2 Layer A — Run Backbone Implementation Plan
 
+**Status:** Completed and locally verified on 2026-07-18. Tasks 1-12 were executed in order; Layers
+B and C remain out of scope.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
