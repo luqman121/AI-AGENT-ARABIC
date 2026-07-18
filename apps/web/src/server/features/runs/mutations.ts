@@ -1,4 +1,4 @@
-import { conversations, runEvents, runs } from "@wakil/db/schema";
+import { conversationMessages, conversations, runEvents, runs } from "@wakil/db/schema";
 import {
   cancelRunInputSchema,
   failure,
@@ -8,7 +8,7 @@ import {
   type ActionResult,
   type RunJobData,
 } from "@wakil/shared";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { Redis } from "ioredis";
 import { z } from "zod";
 
@@ -71,7 +71,7 @@ export async function startRun(
   const scope = {
     key: input.idempotencyKey,
     operation: "run.start",
-    requestHash: hashRequest("run.start", { projectId: input.projectId }),
+    requestHash: hashRequest("run.start", { kind: input.kind, projectId: input.projectId }),
     userId: ctx.userId,
     workspaceId: ctx.workspaceId,
   };
@@ -117,12 +117,64 @@ export async function startRun(
       )[0];
       if (!conversation) throw new ServiceFailure(failure("NOT_FOUND"));
 
+      let parentRunId: string | null = null;
+      if (input.kind === "execution") {
+        const plan = (
+          await tx
+            .select({
+              assistantCreatedAt: conversationMessages.createdAt,
+              id: runs.id,
+            })
+            .from(runs)
+            .innerJoin(
+              conversationMessages,
+              and(
+                eq(conversationMessages.id, runs.assistantMessageId),
+                eq(conversationMessages.workspaceId, runs.workspaceId),
+              ),
+            )
+            .where(
+              and(
+                eq(runs.projectId, project.id),
+                eq(runs.workspaceId, ctx.workspaceId),
+                eq(runs.kind, "planning"),
+                eq(runs.status, "succeeded"),
+                isNotNull(runs.assistantMessageId),
+              ),
+            )
+            .orderBy(desc(runs.createdAt))
+            .limit(1)
+        )[0];
+        if (!plan) throw new ServiceFailure(failure("EXECUTION_PLAN_REQUIRED"));
+
+        const latestUser = (
+          await tx
+            .select({ createdAt: conversationMessages.createdAt })
+            .from(conversationMessages)
+            .where(
+              and(
+                eq(conversationMessages.conversationId, conversation.id),
+                eq(conversationMessages.workspaceId, ctx.workspaceId),
+                eq(conversationMessages.role, "user"),
+              ),
+            )
+            .orderBy(desc(conversationMessages.createdAt))
+            .limit(1)
+        )[0];
+        if (latestUser && latestUser.createdAt > plan.assistantCreatedAt) {
+          throw new ServiceFailure(failure("EXECUTION_PLAN_STALE"));
+        }
+        parentRunId = plan.id;
+      }
+
       const run = (
         await tx
           .insert(runs)
           .values({
             conversationId: conversation.id,
             createdByUserId: ctx.userId,
+            kind: input.kind,
+            parentRunId,
             projectId: project.id,
             workspaceId: ctx.workspaceId,
           })

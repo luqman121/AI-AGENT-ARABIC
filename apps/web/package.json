@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.2",
+    "@wakil/artifacts": "workspace:*",
     "@wakil/db": "workspace:*",
     "@wakil/shared": "workspace:*",
     "@wakil/ui": "workspace:*",

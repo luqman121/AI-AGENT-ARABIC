@@ -1,8 +1,16 @@
-import { conversationMessages, conversations, projects, runEvents, runs } from "@wakil/db/schema";
+import {
+  artifacts,
+  conversationMessages,
+  conversations,
+  projects,
+  runEvents,
+  runs,
+} from "@wakil/db/schema";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { cancelRun, startRun } from "../../src/server/features/runs/mutations";
+import { getLatestArtifact } from "../../src/server/features/artifacts/queries";
 import {
   getLatestRun,
   getRunEventsAfter,
@@ -85,6 +93,7 @@ describe.sequential("run services", () => {
       cancelRequestedAtIso: null,
       errorCode: null,
       id: result.data.runId,
+      kind: "planning",
       status: "queued",
     });
     await expect(
@@ -212,6 +221,132 @@ describe.sequential("run services", () => {
     });
 
     expect(result).toMatchObject({ code: "PROJECT_ARCHIVED", ok: false });
+    expect(enqueueRun).not.toHaveBeenCalled();
+  });
+
+  it("starts execution only from the latest reviewed plan", async () => {
+    const projectId = await createProject(owner, "موقع المقهى");
+    const conversation = (
+      await harness.db
+        .select({ id: conversations.id })
+        .from(conversations)
+        .where(
+          and(
+            eq(conversations.projectId, projectId),
+            eq(conversations.workspaceId, owner.workspaceId),
+          ),
+        )
+        .limit(1)
+    )[0]!;
+    const assistant = (
+      await harness.db
+        .insert(conversationMessages)
+        .values({
+          content: "خطة موجزة\n1. إعداد الصفحة\n2. مراجعة النتيجة",
+          conversationId: conversation.id,
+          role: "assistant",
+          workspaceId: owner.workspaceId,
+        })
+        .returning({ id: conversationMessages.id })
+    )[0]!;
+    const plan = (
+      await harness.db
+        .insert(runs)
+        .values({
+          assistantMessageId: assistant.id,
+          conversationId: conversation.id,
+          createdByUserId: owner.userId,
+          kind: "planning",
+          projectId,
+          status: "succeeded",
+          workspaceId: owner.workspaceId,
+        })
+        .returning({ id: runs.id })
+    )[0]!;
+    const enqueueRun = vi.fn(async () => undefined);
+
+    const result = await startRun({ db: harness.db, enqueueRun, redis: harness.redis }, owner, {
+      idempotencyKey: key("execution-reviewed"),
+      kind: "execution",
+      projectId,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const execution = (
+      await harness.db
+        .select({ kind: runs.kind, parentRunId: runs.parentRunId })
+        .from(runs)
+        .where(eq(runs.id, result.data.runId))
+    )[0];
+    expect(execution).toEqual({ kind: "execution", parentRunId: plan.id });
+    expect(enqueueRun).toHaveBeenCalledOnce();
+
+    await harness.db.insert(artifacts).values({
+      downloadChecksumSha256: "b".repeat(64),
+      downloadMediaType: "application/zip",
+      downloadObjectKey: `private/${result.data.runId}/artifact.zip`,
+      downloadSizeBytes: 200,
+      kind: "static_site",
+      previewChecksumSha256: "a".repeat(64),
+      previewMediaType: "text/html; charset=utf-8",
+      previewObjectKey: `private/${result.data.runId}/preview.html`,
+      previewSizeBytes: 100,
+      projectId,
+      runId: result.data.runId,
+      workspaceId: owner.workspaceId,
+    });
+    await expect(getLatestArtifact(harness.db, owner, projectId)).resolves.toMatchObject({
+      downloadSizeBytes: 200,
+      previewObjectKey: `private/${result.data.runId}/preview.html`,
+    });
+    await expect(getLatestArtifact(harness.db, outsider, projectId)).resolves.toBeNull();
+  });
+
+  it("rejects execution when requirements were added after the plan", async () => {
+    const projectId = await createProject(owner, "خطة قديمة");
+    const conversation = (
+      await harness.db
+        .select({ id: conversations.id })
+        .from(conversations)
+        .where(eq(conversations.projectId, projectId))
+        .limit(1)
+    )[0]!;
+    const planTime = new Date(Date.now() - 5_000);
+    const assistant = (
+      await harness.db
+        .insert(conversationMessages)
+        .values({
+          content: "خطة موجزة\n1. إعداد الصفحة\n2. مراجعة النتيجة",
+          conversationId: conversation.id,
+          createdAt: planTime,
+          role: "assistant",
+          workspaceId: owner.workspaceId,
+        })
+        .returning({ id: conversationMessages.id })
+    )[0]!;
+    await harness.db.insert(runs).values({
+      assistantMessageId: assistant.id,
+      conversationId: conversation.id,
+      createdByUserId: owner.userId,
+      kind: "planning",
+      projectId,
+      status: "succeeded",
+      workspaceId: owner.workspaceId,
+    });
+    await harness.db.insert(conversationMessages).values({
+      content: "أضف قائمة أسعار جديدة",
+      conversationId: conversation.id,
+      createdAt: new Date(),
+      role: "user",
+      workspaceId: owner.workspaceId,
+    });
+    const enqueueRun = vi.fn(async () => undefined);
+    const result = await startRun({ db: harness.db, enqueueRun, redis: harness.redis }, owner, {
+      idempotencyKey: key("execution-stale"),
+      kind: "execution",
+      projectId,
+    });
+    expect(result).toMatchObject({ code: "EXECUTION_PLAN_STALE", ok: false });
     expect(enqueueRun).not.toHaveBeenCalled();
   });
 

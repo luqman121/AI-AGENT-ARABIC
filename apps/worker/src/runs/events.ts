@@ -14,6 +14,7 @@ type Database = ReturnType<typeof createDatabaseClient>["db"];
 type TransactionClient = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export type AppendRunEventInput = {
+  artifactId?: string;
   runId: string;
   workspaceId: string;
   type: RunEventType;
@@ -37,6 +38,7 @@ export async function appendRunEvent(
   const seq = next?.seq ?? 1;
 
   const data: Record<string, number | string> = {};
+  if (input.artifactId) data["artifactId"] = input.artifactId;
   if (input.stepKey) data["stepKey"] = input.stepKey;
   if (typeof input.stepIndex === "number") data["stepIndex"] = input.stepIndex;
   if (input.textDelta) data["textDelta"] = input.textDelta;

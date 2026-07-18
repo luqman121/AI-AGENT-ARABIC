@@ -17,8 +17,10 @@
   },
   "dependencies": {
     "@wakil/agent-core": "workspace:*",
+    "@wakil/artifacts": "workspace:*",
     "@wakil/db": "workspace:*",
     "@wakil/model-router": "workspace:*",
+    "@wakil/sandbox": "workspace:*",
     "@wakil/shared": "workspace:*",
     "@wakil/skills": "workspace:*",
     "bullmq": "5.63.1",

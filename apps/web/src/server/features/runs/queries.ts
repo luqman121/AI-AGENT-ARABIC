@@ -2,6 +2,7 @@ import { runEvents, runs } from "@wakil/db/schema";
 import {
   type RunEventPayload,
   type RunEventType,
+  type RunKind,
   type RunStatus,
   type RunStepKey,
 } from "@wakil/shared";
@@ -12,6 +13,7 @@ import type { Database, ServiceContext } from "../types";
 
 export type RunSummary = {
   id: string;
+  kind: RunKind;
   status: RunStatus;
   errorCode: string | null;
   cancelRequestedAtIso: string | null;
@@ -32,6 +34,7 @@ export async function getLatestRun(
         cancelRequestedAt: runs.cancelRequestedAt,
         errorCode: runs.errorCode,
         id: runs.id,
+        kind: runs.kind,
         status: runs.status,
       })
       .from(runs)
@@ -45,6 +48,7 @@ export async function getLatestRun(
     cancelRequestedAtIso: row.cancelRequestedAt?.toISOString() ?? null,
     errorCode: row.errorCode,
     id: row.id,
+    kind: row.kind as RunKind,
     status: row.status as RunStatus,
   };
 }
@@ -103,12 +107,14 @@ export async function getRunEventsAfter(
 
   return rows.map((row) => {
     const data = (row.data ?? {}) as {
+      artifactId?: string;
       stepIndex?: number;
       stepKey?: RunStepKey;
       textDelta?: string;
       errorCode?: string;
     };
     return {
+      ...(data.artifactId ? { artifactId: data.artifactId } : {}),
       createdAtIso: row.createdAt.toISOString(),
       seq: row.seq,
       ...(typeof data.stepIndex === "number" ? { stepIndex: data.stepIndex } : {}),

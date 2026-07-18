@@ -1,4 +1,5 @@
 export * from "./audit.js";
+export * from "./artifacts.js";
 export * from "./auth.js";
 export * from "./conversations.js";
 export * from "./idempotency.js";

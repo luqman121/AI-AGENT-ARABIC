@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import pino from "pino";
 
 import { readWorkerEnv } from "./env.js";
+import { createArtifactStore, createSandbox } from "./execution.js";
 import { checkReadiness } from "./readiness.js";
 import { createConfiguredModel } from "./model.js";
 import { processRun } from "./runs/processor.js";
@@ -16,11 +17,24 @@ async function main(): Promise<void> {
     level: env.LOG_LEVEL,
     redact: {
       censor: "[REDACTED]",
-      paths: ["DATABASE_URL", "REDIS_URL", "*.DATABASE_URL", "*.REDIS_URL"],
+      paths: [
+        "DATABASE_URL",
+        "REDIS_URL",
+        "DAYTONA_API_KEY",
+        "S3_ACCESS_KEY_ID",
+        "S3_SECRET_ACCESS_KEY",
+        "*.DATABASE_URL",
+        "*.REDIS_URL",
+        "*.DAYTONA_API_KEY",
+        "*.S3_ACCESS_KEY_ID",
+        "*.S3_SECRET_ACCESS_KEY",
+      ],
     },
   });
   const database = createDatabaseClient(env.DATABASE_URL);
   const configuredModel = createConfiguredModel(env);
+  const artifactStore = createArtifactStore(env);
+  const sandbox = createSandbox(env);
   const redis = new Redis(env.REDIS_URL, {
     enableOfflineQueue: false,
     lazyConnect: true,
@@ -59,6 +73,17 @@ async function main(): Promise<void> {
           {
             adapter: configuredModel.adapter,
             db: database.db,
+            execution: {
+              artifactStore,
+              generationLimits: configuredModel.executionLimits,
+              maxZipBytes: env.ARTIFACT_MAX_ZIP_BYTES,
+              sandbox,
+              sandboxLimits: {
+                commandTimeoutSeconds: env.SANDBOX_COMMAND_TIMEOUT_SECONDS,
+                maxDurationMs: env.SANDBOX_MAX_DURATION_MS,
+                ttlMinutes: env.SANDBOX_TTL_MINUTES,
+              },
+            },
             limits: configuredModel.limits,
             model: configuredModel.model,
             modelConfigKey: configuredModel.configKey,

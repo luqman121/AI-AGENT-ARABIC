@@ -5,6 +5,9 @@ import { idempotencyKeySchema, projectIdSchema } from "./fields.js";
 export const RUN_STATUSES = ["queued", "running", "succeeded", "failed", "cancelled"] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
+export const RUN_KINDS = ["planning", "execution"] as const;
+export type RunKind = (typeof RUN_KINDS)[number];
+
 export const RUN_EVENT_TYPES = [
   "run.queued",
   "run.started",
@@ -14,6 +17,11 @@ export const RUN_EVENT_TYPES = [
   "assistant.completed",
   "agent.refused",
   "agent.limit_exceeded",
+  "artifact.generating",
+  "sandbox.created",
+  "sandbox.validated",
+  "artifact.uploading",
+  "artifact.ready",
   "run.succeeded",
   "run.failed",
   "run.cancelled",
@@ -27,6 +35,7 @@ export type RunStepKey = (typeof RUN_STEP_KEYS)[number];
 export const runIdSchema = z.uuid({ error: "معرّف التشغيل غير صالح." });
 
 export const runEventPayloadSchema = z.object({
+  artifactId: z.uuid().optional(),
   seq: z.number().int().positive(),
   type: z.enum(RUN_EVENT_TYPES),
   stepKey: z.enum(RUN_STEP_KEYS).optional(),
@@ -40,6 +49,7 @@ export type RunEventPayload = z.infer<typeof runEventPayloadSchema>;
 export const startRunInputSchema = z.object({
   projectId: projectIdSchema,
   idempotencyKey: idempotencyKeySchema,
+  kind: z.enum(RUN_KINDS).default("planning"),
 });
 export type StartRunInput = z.infer<typeof startRunInputSchema>;
 
@@ -78,6 +88,11 @@ const TYPE_LABELS: Record<RunEventType, string> = {
   "assistant.completed": "اكتملت الخطة",
   "agent.refused": "تعذّر إعداد الخطة لهذا الطلب",
   "agent.limit_exceeded": "توقف التشغيل عند حدّ الاستخدام",
+  "artifact.generating": "بدأ إنشاء الموقع",
+  "sandbox.created": "أُنشئت بيئة تنفيذ معزولة",
+  "sandbox.validated": "اجتاز الموقع التحقق المعزول",
+  "artifact.uploading": "بدأ حفظ ملفات النتيجة بشكل خاص",
+  "artifact.ready": "أصبحت المعاينة والملف جاهزين",
   "run.succeeded": "اكتمل التشغيل",
   "run.failed": "تعذّر إكمال التشغيل",
   "run.cancelled": "أُلغي التشغيل",

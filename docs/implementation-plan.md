@@ -1,5 +1,30 @@
 # Wakil M0-M2 Implementation Plan
 
+## M2 Layer C completion evidence (2026-07-18)
+
+The implemented slice follows the approved scope, security boundaries, limits, and acceptance
+criteria recorded in `docs/superpowers/specs/2026-07-18-m2-layer-c-sandbox-artifacts-design.md`.
+
+- **Delivered:** a separate execution run after the latest reviewed plan; bounded static Arabic site
+  generation; fixed-command validation in a private, ephemeral, network-blocked Daytona sandbox;
+  immutable private HTML/ZIP storage; and tenant-authorized five-minute preview/download links.
+- **Boundaries:** provider SDKs remain inside `packages/model-router`, the Daytona SDK remains
+  inside `packages/sandbox`, and generated HTML is never executed in the web or worker container.
+  Publishing, external effects, and non-website artifact types remain out of scope.
+- **Durability:** the additive `0003_fearless_the_stranger.sql` migration records linked planning
+  and execution runs, sandbox accounting, artifact metadata, immutable object keys, checksums, and
+  the truthful artifact lifecycle events used by SSE replay.
+- **Verification:** formatting, lint, strict typecheck, package tests, 4/4 clean-database migration
+  tests, 4 database integration tests, 4 worker integration tests, 27 web integration tests, and the
+  production build passed. The additive migration was also applied successfully to the existing
+  development database. The complete mobile non-visual suite passed 22/22 tests and the visual suite
+  passed 24/24 tests, including the private artifact preview at `390x844` and `430x932`; both
+  changed preview screenshots were inspected.
+- **External-call boundary:** deterministic tests use fake model/sandbox boundaries and local
+  S3-compatible storage. No paid production model or Daytona execution was used during the gate.
+
+**Status:** M0, M1, M2 Layer A, M2 Layer B, and M2 Layer C are implemented and locally verified.
+
 ## M2 Layer B completion evidence (2026-07-18)
 
 The implemented slice follows the approved scope, limits, and acceptance criteria recorded in

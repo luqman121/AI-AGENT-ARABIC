@@ -4,6 +4,7 @@ import {
   runEventLabel,
   runEventPayloadSchema,
   type RunEventPayload,
+  type RunKind,
   type RunStatus,
 } from "@wakil/shared";
 import { Button, StatusBanner } from "@wakil/ui";
@@ -18,6 +19,7 @@ export type RunPanelSummary = {
   cancelRequestedAtIso: string | null;
   errorCode: string | null;
   id: string;
+  kind: RunKind;
   status: RunStatus;
 };
 
@@ -53,6 +55,10 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
   const runId = run?.id;
   const isActive = run !== null && ACTIVE_STATUSES.has(run.status);
   const cancelRequested = Boolean(run?.cancelRequestedAtIso);
+  const nextKind: RunKind =
+    run?.kind === "execution" || (run?.kind === "planning" && run.status === "succeeded")
+      ? "execution"
+      : "planning";
 
   const applyEvent = useCallback(
     (payload: RunEventPayload) => {
@@ -109,7 +115,11 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
     setError(undefined);
     startTransition(async () => {
       try {
-        const result = await startRunAction({ idempotencyKey: startKey, projectId });
+        const result = await startRunAction({
+          idempotencyKey: startKey,
+          kind: nextKind,
+          projectId,
+        });
         if (!result.ok) {
           setError(result.message);
           return;
@@ -121,12 +131,17 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
           cancelRequestedAtIso: null,
           errorCode: null,
           id: result.data.runId,
+          kind: nextKind,
           status: "queued",
         });
         setStartKey(newIdempotencyKey());
         setCancelKey(newIdempotencyKey());
       } catch {
-        setError("تعذّر إعداد الخطة. تحقق من الاتصال ثم أعد المحاولة.");
+        setError(
+          nextKind === "planning"
+            ? "تعذّر إعداد الخطة. تحقق من الاتصال ثم أعد المحاولة."
+            : "تعذّر بدء التنفيذ. تحقق من الاتصال ثم أعد المحاولة.",
+        );
       }
     });
   }
@@ -168,16 +183,28 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
         ? "توقف إعداد الخطة عند حدّ الاستخدام المسموح. اختصر الطلب ثم أعد المحاولة."
         : run?.errorCode === "PROVIDER_RATE_LIMITED"
           ? "الخدمة مشغولة الآن. انتظر قليلاً ثم أعد المحاولة."
-          : "تعذّر إعداد الخطة. يمكنك بدء تشغيل جديد.";
+          : run?.errorCode?.startsWith("SANDBOX_")
+            ? "تعذّر التحقق من الموقع في بيئة التنفيذ المعزولة. يمكنك إعادة المحاولة."
+            : run?.errorCode === "STORAGE_UNAVAILABLE"
+              ? "تعذّر حفظ ملفات النتيجة بشكل خاص. يمكنك إعادة المحاولة."
+              : run?.kind === "execution"
+                ? "تعذّر تنفيذ الموقع. يمكنك بدء محاولة جديدة."
+                : "تعذّر إعداد الخطة. يمكنك بدء تشغيل جديد.";
+
+  const executionMode = run?.kind === "execution";
 
   return (
     <section aria-labelledby="run-panel-title" className="wk-elevate-1 mb-4 rounded-md p-4">
       <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
         <div>
           <h2 id="run-panel-title" className="text-base font-bold text-fg">
-            إعداد خطة المشروع
+            {executionMode ? "تنفيذ الموقع" : "إعداد خطة المشروع"}
           </h2>
-          <p className="mt-1 text-sm leading-6 text-fg-2">خطة عربية حقيقية تُحفظ أثناء وصولها.</p>
+          <p className="mt-1 text-sm leading-6 text-fg-2">
+            {executionMode
+              ? "إنشاء وتحقق معزول ثم حفظ خاص للمعاينة والتنزيل."
+              : "خطة عربية حقيقية تُحفظ أثناء وصولها."}
+          </p>
         </div>
         {status && StatusIcon ? (
           <span
@@ -189,7 +216,7 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
         ) : null}
       </div>
 
-      {streamedText && isActive ? (
+      {streamedText && isActive && !executionMode ? (
         <div aria-live="polite" className="my-4 rounded-md border border-line bg-surface-2 p-3">
           <p className="whitespace-pre-wrap break-words text-sm leading-7 text-fg">
             {streamedText}
@@ -212,7 +239,7 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
         <p className="my-4 text-sm leading-6 text-fg-2">بانتظار أول تحديث محفوظ من العامل.</p>
       ) : (
         <p className="my-4 text-sm leading-6 text-fg-2">
-          ابدأ التشغيل ليعد وكيل خطة قصيرة قبل تنفيذ المشروع.
+          ابدأ بإعداد خطة قصيرة لتراجعها قبل تنفيذ المشروع.
         </p>
       )}
 
@@ -250,9 +277,16 @@ export function RunPanel({ archived, initialEvents, initialRun, projectId }: Run
         >
           {cancelRequested ? "تم طلب الإلغاء" : "إلغاء التشغيل"}
         </Button>
+      ) : run?.kind === "execution" && run.status === "succeeded" ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Button onClick={() => router.push(`/projects/${projectId}/preview`)}>عرض النتيجة</Button>
+          <Button variant="secondary" onClick={start} loading={pending}>
+            إعادة التنفيذ
+          </Button>
+        </div>
       ) : (
         <Button className="w-full" onClick={start} loading={pending}>
-          إعداد الخطة
+          {nextKind === "execution" ? "بدء تنفيذ الموقع" : "إعداد الخطة"}
         </Button>
       )}
     </section>

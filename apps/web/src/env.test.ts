@@ -9,6 +9,11 @@ const validEnv = {
   EMAIL_FROM: "Wakil <no-reply@wakil.local>",
   NODE_ENV: "test",
   REDIS_URL: "redis://127.0.0.1:6379",
+  S3_ACCESS_KEY_ID: "test-access",
+  S3_BUCKET: "test-bucket",
+  S3_FORCE_PATH_STYLE: "true",
+  S3_REGION: "us-east-1",
+  S3_SECRET_ACCESS_KEY: "test-secret",
   SMTP_HOST: "127.0.0.1",
   SMTP_PORT: "1025",
 } satisfies NodeJS.ProcessEnv;

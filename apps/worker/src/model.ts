@@ -1,4 +1,4 @@
-import type { PlanningLimits } from "@wakil/agent-core";
+import type { PlanningLimits, StaticSiteGenerationLimits } from "@wakil/agent-core";
 import {
   createAnthropicAdapter,
   createGoogleAdapter,
@@ -13,6 +13,7 @@ import type { WorkerEnv } from "./env.js";
 export type ConfiguredModel = {
   adapter: ModelProviderAdapter;
   configKey: string;
+  executionLimits: StaticSiteGenerationLimits;
   limits: PlanningLimits;
   model: string;
 };
@@ -64,6 +65,16 @@ export function createConfiguredModel(env: WorkerEnv): ConfiguredModel {
   return {
     adapter: new ModelRouter(adapters).get(env.MODEL_PROVIDER),
     configKey: env.MODEL_PROVIDER,
+    executionLimits: {
+      deadlineMs: env.MODEL_DEADLINE_MS,
+      inputCostMicrosPerMillionTokens: env.MODEL_INPUT_COST_MICROS_PER_MILLION_TOKENS,
+      maxAttempts: env.MODEL_MAX_ATTEMPTS,
+      maxCostMicros: env.EXECUTION_MODEL_MAX_COST_MICROS,
+      maxHtmlBytes: env.EXECUTION_MODEL_MAX_HTML_BYTES,
+      maxOutputChars: env.EXECUTION_MODEL_MAX_OUTPUT_CHARS,
+      maxOutputTokens: env.EXECUTION_MODEL_MAX_OUTPUT_TOKENS,
+      outputCostMicrosPerMillionTokens: env.MODEL_OUTPUT_COST_MICROS_PER_MILLION_TOKENS,
+    },
     limits: {
       deadlineMs: env.MODEL_DEADLINE_MS,
       inputCostMicrosPerMillionTokens: env.MODEL_INPUT_COST_MICROS_PER_MILLION_TOKENS,

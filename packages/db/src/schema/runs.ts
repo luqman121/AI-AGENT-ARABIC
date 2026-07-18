@@ -27,6 +27,8 @@ export const runs = pgTable(
       .references(() => workspaces.id, { onDelete: "cascade" }),
     projectId: uuid("project_id").notNull(),
     conversationId: uuid("conversation_id").notNull(),
+    kind: text("kind").notNull().default("planning"),
+    parentRunId: uuid("parent_run_id"),
     status: text("status").notNull().default("queued"),
     createdByUserId: uuid("created_by_user_id")
       .notNull()
@@ -40,6 +42,9 @@ export const runs = pgTable(
     modelConfigKey: text("model_config_key"),
     promptVersion: text("prompt_version"),
     assistantMessageId: uuid("assistant_message_id"),
+    sandboxProvider: text("sandbox_provider"),
+    sandboxId: text("sandbox_id"),
+    sandboxDurationMs: integer("sandbox_duration_ms").notNull().default(0),
     cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp("started_at", { withTimezone: true }),
@@ -64,6 +69,11 @@ export const runs = pgTable(
       foreignColumns: [conversationMessages.id, conversationMessages.workspaceId],
       name: "runs_assistant_message_workspace_fk",
     }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.parentRunId, table.workspaceId],
+      foreignColumns: [table.id, table.workspaceId],
+      name: "runs_parent_run_workspace_fk",
+    }).onDelete("restrict"),
     index("runs_workspace_project_created_idx").on(
       table.workspaceId,
       table.projectId,
@@ -79,6 +89,11 @@ export const runs = pgTable(
     check(
       "runs_status_check",
       sql`${table.status} in ('queued', 'running', 'succeeded', 'failed', 'cancelled')`,
+    ),
+    check("runs_kind_check", sql`${table.kind} in ('planning', 'execution')`),
+    check(
+      "runs_parent_kind_check",
+      sql`(${table.kind} = 'planning' and ${table.parentRunId} is null) or (${table.kind} = 'execution' and ${table.parentRunId} is not null)`,
     ),
   ],
 );
@@ -110,7 +125,7 @@ export const runEvents = pgTable(
     }).onDelete("cascade"),
     check(
       "run_events_type_check",
-      sql`${table.type} in ('run.queued', 'run.started', 'run.step', 'agent.started', 'assistant.delta', 'assistant.completed', 'agent.refused', 'agent.limit_exceeded', 'run.succeeded', 'run.failed', 'run.cancelled')`,
+      sql`${table.type} in ('run.queued', 'run.started', 'run.step', 'agent.started', 'assistant.delta', 'assistant.completed', 'agent.refused', 'agent.limit_exceeded', 'artifact.generating', 'sandbox.created', 'sandbox.validated', 'artifact.uploading', 'artifact.ready', 'run.succeeded', 'run.failed', 'run.cancelled')`,
     ),
   ],
 );

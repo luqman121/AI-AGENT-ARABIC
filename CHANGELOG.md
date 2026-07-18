@@ -4,6 +4,35 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### M2 Layer C — Sandbox and Static Website Artifacts
+
+Added a review-before-execution slice that generates, validates, previews, and downloads one
+self-contained static Arabic website without publishing or running generated content in Wakil's
+control plane.
+
+- **Explicit execution:** successful planning runs now offer a separate execution action linked to
+  the reviewed plan. A newer user request makes the plan stale and requires review again.
+- **Bounded generation:** added the versioned `static-site.ar.v1` prompt and a size-, token-, cost-,
+  attempt-, cancellation-, and deadline-bounded agent turn. Generated HTML is schema-checked,
+  rejects remote assets and unsafe embeds/forms, and receives a restrictive CSP.
+- **Sandbox boundary:** added `packages/sandbox` with a Daytona adapter that creates private,
+  ephemeral sandboxes with outbound networking blocked, uploads only the generated HTML and a
+  trusted validator, runs one fixed command, and deletes the sandbox with a TTL backstop.
+- **Private artifacts:** added `packages/artifacts` to create checksummed HTML previews and ZIP
+  downloads, store them under tenant/run/artifact-scoped immutable keys in private S3-compatible
+  storage, and issue tenant-authorized five-minute signed URLs.
+- **Durable lifecycle:** added the `0003_fearless_the_stranger.sql` migration for linked execution
+  runs, sandbox accounting, artifact records, and truthful sandbox/artifact events. Artifact upload,
+  assistant completion, accounting, and terminal run state are committed transactionally.
+- **Mobile preview:** added truthful Arabic execution states plus a separate-origin preview in an
+  iframe sandbox without same-origin privilege, with explicit ZIP download and preview controls.
+- **Verification:** formatting, lint, strict typecheck, unit tests, 4/4 clean migration tests, 4
+  database integration tests, 4 worker integration tests, 27 web integration tests, and the
+  production build passed. The migration applied successfully to the existing development database.
+  The 22/22 non-visual and 24/24 visual Playwright suites passed at `390x844` and `430x932`,
+  including the new private artifact preview, and both preview screenshots were inspected. No paid
+  production model or Daytona request was made during verification.
+
 ### M2 Layer B — Live Agent and Model Router
 
 Added one bounded, real model-backed Arabic planning turn without generated-code execution, sandbox

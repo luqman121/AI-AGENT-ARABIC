@@ -35,12 +35,14 @@ sandbox.
 
 ## Current Milestone Scope
 
-M0, M1, M2 Layer A, and **M2 Layer B — Live Agent and Model Router** are complete, as specified in:
+M0, M1, M2 Layer A, M2 Layer B, and **M2 Layer C — Sandbox and Static Website Artifacts** are
+complete. Layer C was approved by the user on 2026-07-18 and is specified in:
 
-- `docs/superpowers/specs/2026-07-18-m2-layer-b-live-agent-design.md`
+- `docs/superpowers/specs/2026-07-18-m2-layer-c-sandbox-artifacts-design.md`
 
-**Status:** M2 Layer B passed its complete gate on 2026-07-18. OpenRouter is primary, with direct
-OpenAI, Anthropic, and Google adapters. No Layer C implementation is authorized in this run.
+**Status:** M2 Layer C is implemented and locally verified with Daytona as the sandbox provider and
+private S3-compatible artifact storage. Publishing and non-website artifact types remain out of
+scope.
 
 ### M0 — Foundation
 
@@ -81,8 +83,16 @@ OpenAI, Anthropic, and Google adapters. No Layer C implementation is authorized 
 - Durable assistant deltas, a final assistant message, replay, cancellation, and explicit errors.
 - Time, attempt, token, event-size, and provider-spend limits.
 
-Do not implement generated-code execution, external sandbox integration, artifacts, billing
-checkout, or production publishing in this milestone.
+### M2 Layer C — Sandbox and Static Website Artifacts
+
+- A separate, explicitly started execution run linked to the reviewed Layer B plan.
+- Bounded generation of one self-contained static Arabic website.
+- Private, ephemeral Daytona execution with outbound networking blocked.
+- Sandbox validation before private S3-compatible preview and ZIP upload.
+- Tenant-authorized short-lived preview/download URLs and mobile execution states.
+
+Do not implement PDF/spreadsheet/presentation/image generation, billing checkout, custom domains,
+external messaging, or production publishing in this milestone.
 
 ## Locked Architecture
 
@@ -115,10 +125,12 @@ intentional motion should create a premium identity without generic AI-template 
 
 ## Success Criteria for This Codex Run
 
-- Complete the approved M2 Layer B scope without expanding into Layer C.
-- Prove provider routing, boundary validation, tenant isolation, durable streamed replay,
-  cancellation, refusal/error handling, one-final-message idempotency, and configured limits.
-- Show only real persisted provider output and truthful agent progress in the Arabic RTL mobile UI.
+- Complete the approved M2 Layer C static-website slice without expanding into publishing or other
+  artifact types.
+- Prove review-before-execution, sandbox isolation, private object storage, tenant authorization,
+  signed URL expiry, cancellation, retry idempotency, and configured model/sandbox/artifact limits.
+- Never execute generated content in the web or worker container and never expose control-plane
+  credentials to the sandbox or browser.
 - Pass formatting, lint, typecheck, unit, migration, integration, build, and both mobile Playwright
   gates before declaring the milestone complete.
 - Update `CHANGELOG.md` only with behavior verified in this run.

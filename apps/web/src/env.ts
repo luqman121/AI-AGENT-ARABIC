@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.url().optional());
+
 const webEnvSchema = z
   .object({
     AUTH_GOOGLE_ID: z.string().optional(),
@@ -10,6 +12,12 @@ const webEnvSchema = z
     EMAIL_FROM: z.string().min(3),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     REDIS_URL: z.url(),
+    S3_ACCESS_KEY_ID: z.string().min(1),
+    S3_BUCKET: z.string().min(1),
+    S3_ENDPOINT: optionalUrl,
+    S3_FORCE_PATH_STYLE: z.enum(["true", "false"]).transform((value) => value === "true"),
+    S3_REGION: z.string().min(1),
+    S3_SECRET_ACCESS_KEY: z.string().min(1),
     SMTP_HOST: z.string().min(1),
     SMTP_PORT: z.coerce.number().int().min(1).max(65535),
   })
