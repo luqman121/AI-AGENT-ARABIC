@@ -24,6 +24,7 @@
     "@wakil/db": "workspace:*",
     "@wakil/shared": "workspace:*",
     "@wakil/ui": "workspace:*",
+    "bullmq": "5.63.1",
     "drizzle-orm": "0.45.2",
     "ioredis": "5.11.1",
     "lucide-react": "1.25.0",

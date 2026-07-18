@@ -65,6 +65,9 @@ importers:
       '@wakil/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      bullmq:
+        specifier: 5.63.1
+        version: 5.63.1
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(postgres@3.4.9)
