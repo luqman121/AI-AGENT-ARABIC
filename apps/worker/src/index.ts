@@ -1,10 +1,13 @@
 import { createDatabaseClient } from "@wakil/db";
+import { RUNS_QUEUE_NAME, type RunJobData } from "@wakil/shared";
+import { Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { pathToFileURL } from "node:url";
 import pino from "pino";
 
 import { readWorkerEnv } from "./env.js";
 import { checkReadiness } from "./readiness.js";
+import { processRun } from "./runs/processor.js";
 
 async function main(): Promise<void> {
   const env = readWorkerEnv(process.env);
@@ -43,10 +46,32 @@ async function main(): Promise<void> {
       return;
     }
 
+    // BullMQ's blocking connection requires maxRetriesPerRequest: null.
+    const queueConnection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
+    const publisher = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1 });
+
+    const worker = new Worker<RunJobData>(
+      RUNS_QUEUE_NAME,
+      async (job) => {
+        const status = await processRun({ db: database.db, redis: publisher }, job.data);
+        logger.info({ runId: job.data.runId, status }, "run processed");
+      },
+      { connection: queueConnection, concurrency: 4 },
+    );
+
+    worker.on("failed", (job, error) => {
+      logger.error({ runId: job?.data.runId, error: error.name }, "run job failed");
+    });
+
+    logger.info({ queue: RUNS_QUEUE_NAME, state: "consuming" }, "worker ready");
+
     await new Promise<void>((resolve) => {
       process.once("SIGINT", resolve);
       process.once("SIGTERM", resolve);
     });
+
+    await worker.close();
+    await Promise.allSettled([queueConnection.quit(), publisher.quit()]);
   } finally {
     await Promise.allSettled([database.close(), redis.quit()]);
     logger.info({ state: "stopped" }, "worker stopped");
