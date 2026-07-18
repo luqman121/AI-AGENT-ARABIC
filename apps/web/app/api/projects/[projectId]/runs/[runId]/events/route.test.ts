@@ -112,9 +112,7 @@ describe("GET run events SSE", () => {
       seq: 3,
       type: "run.succeeded",
     };
-    mocks.createRedisSubscriber.mockReturnValue(
-      subscriberThatPublishesOnSubscribe(liveTerminal),
-    );
+    mocks.createRedisSubscriber.mockReturnValue(subscriberThatPublishesOnSubscribe(liveTerminal));
     mocks.getRunEventsAfter.mockResolvedValue([
       {
         createdAtIso: "2026-07-18T10:00:01.000Z",

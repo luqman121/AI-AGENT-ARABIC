@@ -44,6 +44,12 @@ test("projects empty, create, and conversation states @visual", async ({ page },
   await page.getByLabel("اوصف طلبك").fill("موقع بسيط للمقهى مع قائمة المشروبات وساعات العمل");
   await page.getByRole("button", { name: "إنشاء المشروع" }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { level: 1, name: seededTitle })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "التشغيل التقني" })
+      .getByRole("button", { name: "بدء التشغيل" }),
+  ).toBeVisible();
   await captureState(page, testInfo, "conversation-default");
 
   await page.getByRole("button", { name: "خيارات المشروع" }).click();

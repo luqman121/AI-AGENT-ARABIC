@@ -12,10 +12,14 @@ const BASE_URL = `http://localhost:${PORT}`;
 export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   fullyParallel: false,
+  globalSetup: "./e2e/global-setup.ts",
   outputDir: "../../artifacts/playwright",
   reporter: process.env.CI ? [["line"], ["html", { open: "never" }]] : "list",
   testDir: "./e2e",
   timeout: 60_000,
+  // Run-state visual tests pause the shared local queue briefly; one worker
+  // keeps those truthful transport controls isolated across mobile projects.
+  workers: 1,
   use: {
     baseURL: BASE_URL,
     locale: "ar-OM",
