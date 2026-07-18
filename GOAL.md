@@ -35,14 +35,13 @@ sandbox.
 
 ## Current Milestone Scope
 
-M0, M1, M2 Layer A, M2 Layer B, and **M2 Layer C — Sandbox and Static Website Artifacts** are
-complete. Layer C was approved by the user on 2026-07-18 and is specified in:
+M0, M1, M2 Layer A, M2 Layer B, and M2 Layer C are complete. The current approved milestone is **M3
+— Production Release Readiness**.
 
-- `docs/superpowers/specs/2026-07-18-m2-layer-c-sandbox-artifacts-design.md`
-
-**Status:** M2 Layer C is implemented and locally verified with Daytona as the sandbox provider and
-private Cloudflare R2 artifact storage through its S3-compatible API. Publishing and non-website
-artifact types remain out of scope.
+**Status:** repository implementation and local verification are complete. The project is ready for
+production configuration, but provider-side configuration, backups, monitoring, physical-device
+checks, deployment approval, and the production rollout remain manual and are not claimed as
+complete. This milestone did not deploy production or add product functionality.
 
 ### M0 — Foundation
 
@@ -91,8 +90,18 @@ artifact types remain out of scope.
 - Sandbox validation before private Cloudflare R2 preview and ZIP upload.
 - Tenant-authorized short-lived preview/download URLs and mobile execution states.
 
-Do not implement PDF/spreadsheet/presentation/image generation, billing checkout, custom domains,
-external messaging, or production publishing in this milestone.
+### M3 — Production Release Readiness
+
+- Inventory production configuration without exposing secret values.
+- Make web, worker, database migration, Redis, and R2 operational boundaries explicit.
+- Add safe liveness/readiness checks, container definitions, release gates, and smoke checks.
+- Document monitoring, alerts, backups, restore drills, rollback, mobile release checks, and the
+  manual production procedure.
+- Verify the complete local quality, migration, storage, workflow, container, and smoke gates.
+
+Do not implement PDF/spreadsheet/presentation/image generation, billing or credits, checkout, custom
+domains, external messaging, team invitations, workspace switching, or production publishing in this
+milestone. Do not begin M4.
 
 ## Locked Architecture
 
@@ -125,12 +134,17 @@ intentional motion should create a premium identity without generic AI-template 
 
 ## Success Criteria for This Codex Run
 
-- Complete the approved M2 Layer C static-website slice without expanding into publishing or other
-  artifact types.
-- Prove review-before-execution, sandbox isolation, private object storage, tenant authorization,
-  signed URL expiry, cancellation, retry idempotency, and configured model/sandbox/artifact limits.
-- Never execute generated content in the web or worker container and never expose control-plane
-  credentials to the sandbox or browser.
-- Pass formatting, lint, typecheck, unit, migration, integration, build, and both mobile Playwright
-  gates before declaring the milestone complete.
-- Update `CHANGELOG.md` only with behavior verified in this run.
+- Production configuration is completely inventoried by service and remains server-only where
+  required.
+- Web and worker have separate production processes, safe dependency-aware readiness checks,
+  graceful shutdown, and immutable container targets.
+- Production migrations run once as a dedicated job; PostgreSQL, Redis, and R2 remain private and
+  least-privileged.
+- CI blocks release preparation on formatting, lint, typecheck, tests, migration validation,
+  production builds, and container builds without exposing production secrets to pull requests.
+- Operators have executable smoke checks and precise deployment, monitoring, backup, restore,
+  rollback, and mobile verification checklists.
+- All supported local gates pass; anything requiring provider access, production credentials,
+  real-device hardware, or deployment approval is reported as a manual or blocked item.
+- `CHANGELOG.md` records only behavior verified in this run, and no commit or deployment occurs
+  without explicit user approval.

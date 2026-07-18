@@ -23,6 +23,7 @@
     "test:e2e:visual": "pnpm --filter @wakil/web test:e2e:visual",
     "test:integration": "turbo run test:integration",
     "test:integration:migrations": "pnpm --filter @wakil/db test:integration:migrations",
+    "test:production-smoke": "node scripts/production-smoke.mjs",
     "test:pwa": "pnpm --filter @wakil/web test:pwa",
     "test:smoke": "node scripts/smoke.mjs",
     "typecheck": "turbo run typecheck"

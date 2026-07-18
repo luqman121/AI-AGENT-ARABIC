@@ -1,0 +1,131 @@
+name: wakil-production
+
+x-app-environment: &app-environment
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  NODE_ENV: production
+  REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+  S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+  S3_ENDPOINT: ${S3_ENDPOINT:?S3_ENDPOINT is required}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+  S3_REGION: ${S3_REGION:-auto}
+
+services:
+  migrate:
+    image: wakil-migrate:${WAKIL_IMAGE_TAG:?WAKIL_IMAGE_TAG is required}
+    build:
+      context: ..
+      target: migrate
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    networks: [private]
+    restart: "no"
+
+  web:
+    image: wakil-web:${WAKIL_IMAGE_TAG:?WAKIL_IMAGE_TAG is required}
+    build:
+      context: ..
+      target: web
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      AUTH_URL: ${AUTH_URL:?AUTH_URL is required}
+      EMAIL_FROM: ${EMAIL_FROM:?EMAIL_FROM is required}
+      S3_ACCESS_KEY_ID: ${WEB_S3_ACCESS_KEY_ID:?WEB_S3_ACCESS_KEY_ID is required}
+      S3_SECRET_ACCESS_KEY: ${WEB_S3_SECRET_ACCESS_KEY:?WEB_S3_SECRET_ACCESS_KEY is required}
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_PORT: ${SMTP_PORT:?SMTP_PORT is required}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+    expose: ["3000"]
+    networks: [ingress, private]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    image: wakil-worker:${WAKIL_IMAGE_TAG:?WAKIL_IMAGE_TAG is required}
+    build:
+      context: ..
+      target: worker
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      ARTIFACT_MAX_ZIP_BYTES: ${ARTIFACT_MAX_ZIP_BYTES:-1000000}
+      DAYTONA_API_KEY: ${DAYTONA_API_KEY:?DAYTONA_API_KEY is required}
+      DAYTONA_API_URL: ${DAYTONA_API_URL:-}
+      DAYTONA_TARGET: ${DAYTONA_TARGET:-}
+      EXECUTION_MODEL_MAX_COST_MICROS: ${EXECUTION_MODEL_MAX_COST_MICROS:-200000}
+      EXECUTION_MODEL_MAX_HTML_BYTES: ${EXECUTION_MODEL_MAX_HTML_BYTES:-250000}
+      EXECUTION_MODEL_MAX_OUTPUT_CHARS: ${EXECUTION_MODEL_MAX_OUTPUT_CHARS:-300000}
+      EXECUTION_MODEL_MAX_OUTPUT_TOKENS: ${EXECUTION_MODEL_MAX_OUTPUT_TOKENS:-32000}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_BASE_URL: ${GOOGLE_BASE_URL:-}
+      GOOGLE_MODEL: ${GOOGLE_MODEL:-}
+      MODEL_DEADLINE_MS: ${MODEL_DEADLINE_MS:-60000}
+      MODEL_INPUT_COST_MICROS_PER_MILLION_TOKENS:
+        ${MODEL_INPUT_COST_MICROS_PER_MILLION_TOKENS:?MODEL_INPUT_COST_MICROS_PER_MILLION_TOKENS is
+        required}
+      MODEL_MAX_ATTEMPTS: ${MODEL_MAX_ATTEMPTS:-2}
+      MODEL_MAX_COST_MICROS: ${MODEL_MAX_COST_MICROS:-50000}
+      MODEL_MAX_DELTA_EVENTS: ${MODEL_MAX_DELTA_EVENTS:-512}
+      MODEL_MAX_OUTPUT_CHARS: ${MODEL_MAX_OUTPUT_CHARS:-8000}
+      MODEL_MAX_OUTPUT_TOKENS: ${MODEL_MAX_OUTPUT_TOKENS:-1500}
+      MODEL_OUTPUT_COST_MICROS_PER_MILLION_TOKENS:
+        ${MODEL_OUTPUT_COST_MICROS_PER_MILLION_TOKENS:?MODEL_OUTPUT_COST_MICROS_PER_MILLION_TOKENS
+        is required}
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-openrouter}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      S3_ACCESS_KEY_ID: ${WORKER_S3_ACCESS_KEY_ID:?WORKER_S3_ACCESS_KEY_ID is required}
+      S3_SECRET_ACCESS_KEY: ${WORKER_S3_SECRET_ACCESS_KEY:?WORKER_S3_SECRET_ACCESS_KEY is required}
+      SANDBOX_COMMAND_TIMEOUT_SECONDS: ${SANDBOX_COMMAND_TIMEOUT_SECONDS:-30}
+      SANDBOX_MAX_DURATION_MS: ${SANDBOX_MAX_DURATION_MS:-120000}
+      SANDBOX_TTL_MINUTES: ${SANDBOX_TTL_MINUTES:-3}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+      WORKER_HEALTH_PORT: 3001
+    expose: ["3001"]
+    networks: [private]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  ingress:
+  private:
+    internal: true

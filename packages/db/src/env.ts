@@ -6,7 +6,9 @@ const rootEnvPath = fileURLToPath(new URL("../../../.env.local", import.meta.url
 loadDotEnv({ path: rootEnvPath, quiet: true });
 
 const databaseEnvSchema = z.object({
-  DATABASE_URL: z.url(),
+  DATABASE_URL: z
+    .url()
+    .refine((value) => value.startsWith("postgres://") || value.startsWith("postgresql://")),
 });
 
 export type DatabaseEnv = z.infer<typeof databaseEnvSchema>;

@@ -8,10 +8,20 @@ const optionalString = z.preprocess(
   z.string().min(1).optional(),
 );
 const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.url().optional());
+const postgresUrl = z
+  .url()
+  .refine((value) => value.startsWith("postgres://") || value.startsWith("postgresql://"), {
+    message: "PostgreSQL URL required",
+  });
+const redisUrl = z
+  .url()
+  .refine((value) => value.startsWith("redis://") || value.startsWith("rediss://"), {
+    message: "Redis URL required",
+  });
 
 const workerEnvSchema = z
   .object({
-    DATABASE_URL: z.url(),
+    DATABASE_URL: postgresUrl,
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
     MODEL_DEADLINE_MS: z.coerce.number().int().positive().max(300_000).default(60_000),
     MODEL_INPUT_COST_MICROS_PER_MILLION_TOKENS: z.coerce.number().int().nonnegative(),
@@ -67,7 +77,9 @@ const workerEnvSchema = z
     S3_FORCE_PATH_STYLE: z.literal("true").transform(() => true),
     S3_REGION: z.literal("auto"),
     S3_SECRET_ACCESS_KEY: z.string().min(1),
-    REDIS_URL: z.url(),
+    REDIS_URL: redisUrl,
+    WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+    WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   })
   .superRefine((env, ctx) => {
     const prefix = env.MODEL_PROVIDER.toUpperCase();

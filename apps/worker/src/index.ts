@@ -2,11 +2,13 @@ import { createDatabaseClient } from "@wakil/db";
 import { RUNS_QUEUE_NAME, type RunJobData } from "@wakil/shared";
 import { Worker } from "bullmq";
 import { Redis } from "ioredis";
+import type { Server } from "node:http";
 import { pathToFileURL } from "node:url";
 import pino from "pino";
 
 import { readWorkerEnv } from "./env.js";
 import { createArtifactStore, createSandbox } from "./execution.js";
+import { closeWorkerHealth, listenForWorkerHealth } from "./health-server.js";
 import { checkReadiness } from "./readiness.js";
 import { createConfiguredModel } from "./model.js";
 import { processRun } from "./runs/processor.js";
@@ -14,6 +16,7 @@ import { processRun } from "./runs/processor.js";
 async function main(): Promise<void> {
   const env = readWorkerEnv(process.env);
   const logger = pino({
+    base: { service: "worker" },
     level: env.LOG_LEVEL,
     redact: {
       censor: "[REDACTED]",
@@ -21,11 +24,19 @@ async function main(): Promise<void> {
         "DATABASE_URL",
         "REDIS_URL",
         "DAYTONA_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GOOGLE_API_KEY",
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
         "S3_ACCESS_KEY_ID",
         "S3_SECRET_ACCESS_KEY",
         "*.DATABASE_URL",
         "*.REDIS_URL",
         "*.DAYTONA_API_KEY",
+        "*.ANTHROPIC_API_KEY",
+        "*.GOOGLE_API_KEY",
+        "*.OPENAI_API_KEY",
+        "*.OPENROUTER_API_KEY",
         "*.S3_ACCESS_KEY_ID",
         "*.S3_SECRET_ACCESS_KEY",
       ],
@@ -36,10 +47,16 @@ async function main(): Promise<void> {
   const artifactStore = createArtifactStore(env);
   const sandbox = createSandbox(env);
   const redis = new Redis(env.REDIS_URL, {
+    connectTimeout: 5000,
     enableOfflineQueue: false,
     lazyConnect: true,
     maxRetriesPerRequest: 1,
   });
+  const healthState = { ready: false };
+  let healthServer: Server | undefined;
+  let publisher: Redis | undefined;
+  let queueConnection: Redis | undefined;
+  let runWorker: Worker<RunJobData> | undefined;
 
   try {
     const readiness = await checkReadiness({
@@ -62,11 +79,21 @@ async function main(): Promise<void> {
       return;
     }
 
-    // BullMQ's blocking connection requires maxRetriesPerRequest: null.
-    const queueConnection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
-    const publisher = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1 });
+    healthServer = await listenForWorkerHealth(healthState, env.WORKER_HEALTH_PORT);
 
-    const worker = new Worker<RunJobData>(
+    // BullMQ's blocking connection requires maxRetriesPerRequest: null.
+    const blockingConnection = new Redis(env.REDIS_URL, {
+      connectTimeout: 5000,
+      maxRetriesPerRequest: null,
+    });
+    queueConnection = blockingConnection;
+    const eventPublisher = new Redis(env.REDIS_URL, {
+      connectTimeout: 5000,
+      maxRetriesPerRequest: 1,
+    });
+    publisher = eventPublisher;
+
+    runWorker = new Worker<RunJobData>(
       RUNS_QUEUE_NAME,
       async (job) => {
         const status = await processRun(
@@ -87,30 +114,42 @@ async function main(): Promise<void> {
             limits: configuredModel.limits,
             model: configuredModel.model,
             modelConfigKey: configuredModel.configKey,
-            redis: publisher,
+            redis: eventPublisher,
           },
           job.data,
         );
         logger.info({ runId: job.data.runId, status }, "run processed");
       },
-      { connection: queueConnection, concurrency: 4 },
+      { connection: blockingConnection, concurrency: env.WORKER_CONCURRENCY },
     );
 
-    worker.on("failed", (job, error) => {
+    runWorker.on("failed", (job, error) => {
       logger.error({ runId: job?.data.runId, error: error.name }, "run job failed");
     });
 
-    logger.info({ queue: RUNS_QUEUE_NAME, state: "consuming" }, "worker ready");
+    await runWorker.waitUntilReady();
+    healthState.ready = true;
+    logger.info(
+      { concurrency: env.WORKER_CONCURRENCY, queue: RUNS_QUEUE_NAME, state: "consuming" },
+      "worker ready",
+    );
 
     await new Promise<void>((resolve) => {
       process.once("SIGINT", resolve);
       process.once("SIGTERM", resolve);
     });
 
-    await worker.close();
-    await Promise.allSettled([queueConnection.quit(), publisher.quit()]);
+    healthState.ready = false;
   } finally {
-    await Promise.allSettled([database.close(), redis.quit()]);
+    healthState.ready = false;
+    if (runWorker) await runWorker.close().catch(() => undefined);
+    await Promise.allSettled([
+      database.close(),
+      redis.quit(),
+      ...(queueConnection ? [queueConnection.quit()] : []),
+      ...(publisher ? [publisher.quit()] : []),
+      ...(healthServer ? [closeWorkerHealth(healthServer)] : []),
+    ]);
     logger.info({ state: "stopped" }, "worker stopped");
   }
 }

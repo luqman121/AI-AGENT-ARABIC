@@ -15,9 +15,14 @@ function buildProviders() {
     from: env.EMAIL_FROM,
     maxAge: 60 * 60,
     server: {
+      disableFileAccess: true,
+      disableUrlAccess: true,
       host: env.SMTP_HOST,
+      ...(env.SMTP_USER && env.SMTP_PASSWORD
+        ? { auth: { pass: env.SMTP_PASSWORD, user: env.SMTP_USER } }
+        : {}),
       port: env.SMTP_PORT,
-      secure: false,
+      secure: env.SMTP_SECURE,
     },
     // next-auth's NodemailerConfig is not assignable to Provider under
     // exactOptionalPropertyTypes; the value is a standard provider config.

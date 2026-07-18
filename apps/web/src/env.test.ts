@@ -23,7 +23,9 @@ describe("readWebEnv", () => {
   it("accepts the required server environment", () => {
     const parsed = readWebEnv(validEnv);
     expect(parsed.DATABASE_URL).toBe(validEnv.DATABASE_URL);
+    expect(parsed.LOG_LEVEL).toBe("info");
     expect(parsed.SMTP_PORT).toBe(1025);
+    expect(parsed.SMTP_SECURE).toBe(false);
   });
 
   it("reports invalid names without exposing their values", () => {
@@ -55,6 +57,29 @@ describe("readWebEnv", () => {
 
   it("requires a strong auth secret", () => {
     expect(() => readWebEnv({ ...validEnv, AUTH_SECRET: "short" })).toThrowError(/AUTH_SECRET/);
+  });
+
+  it("requires HTTPS for non-loopback production auth callbacks", () => {
+    expect(() =>
+      readWebEnv({ ...validEnv, AUTH_URL: "http://wakil.example", NODE_ENV: "production" }),
+    ).toThrowError(/AUTH_URL/);
+    expect(
+      readWebEnv({ ...validEnv, AUTH_URL: "https://wakil.example", NODE_ENV: "production" })
+        .AUTH_URL,
+    ).toBe("https://wakil.example");
+  });
+
+  it("validates database, Redis, and SMTP credential protocols and pairs", () => {
+    expect(() => readWebEnv({ ...validEnv, DATABASE_URL: "https://db.example" })).toThrowError(
+      /DATABASE_URL/,
+    );
+    expect(() => readWebEnv({ ...validEnv, REDIS_URL: "https://redis.example" })).toThrowError(
+      /REDIS_URL/,
+    );
+    expect(() => readWebEnv({ ...validEnv, SMTP_USER: "mailer" })).toThrowError(/SMTP_PASSWORD/);
+    expect(
+      readWebEnv({ ...validEnv, SMTP_PASSWORD: "password", SMTP_USER: "mailer" }).SMTP_USER,
+    ).toBe("mailer");
   });
 
   it.each([

@@ -1,5 +1,48 @@
 # Wakil M0-M2 Implementation Plan
 
+## M3 production release readiness (2026-07-18)
+
+- **Scope:** prepare the existing web, worker, PostgreSQL, Redis, and private Cloudflare R2 system
+  for production operations without deploying it or adding product functionality.
+- **Files:** production environment and operations documentation; web and worker readiness code;
+  environment schemas and focused tests; Docker build and Compose definitions; safe production smoke
+  checks; CI release gates; root scripts; `GOAL.md`; and `CHANGELOG.md`.
+- **Assumptions:** deployment-provider credentials and production infrastructure are not available
+  to this run. The deployment target remains provider-neutral behind a managed TLS ingress. R2
+  credentials already passed the cleanup-safe live lifecycle check and will not be printed.
+- **Implementation slices:** (1) environment/security hardening, (2) dependency-aware web and worker
+  health, graceful operation, and queue failure retention, (3) separate immutable web, worker, and
+  migration containers, (4) CI preflight and safe smoke tooling, and (5) operator runbooks and
+  release checklist.
+- **Verification:** formatting, lint, strict typecheck, unit and integration tests, production
+  build, migration validation against non-production PostgreSQL, storage tests, workflow validation,
+  every production Docker target, Compose rendering, and local health/smoke checks.
+- **Acceptance:** no production secret reaches source, logs, browser code, forked PRs, or container
+  layers; only the web ingress is public; migrations run once; readiness accurately reflects
+  dependencies; worker concurrency and failure retention are bounded; all local gates pass; and
+  provider/manual checks are reported truthfully.
+- **Non-goals:** deployment, production data changes, publishing, billing, new artifact types,
+  domains, messaging integrations, teams, workspace switching, or any M4 feature.
+
+**Status:** complete locally. The initial Repository and Git review found a clean branch with no
+staged or uncommitted files. M3 added production-safe configuration validation, separate non-root
+web/worker/migration images, dependency-aware readiness, graceful worker shutdown, bounded queue
+failure retention, CI/release preflight gates, safe smoke tooling, and the complete operator runbook
+set. No commit or deployment was performed.
+
+**Verification evidence:** `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
+`pnpm test:integration:migrations`, `pnpm test:integration`, `pnpm build`, `pnpm storage:health`,
+`pnpm audit --prod`, and `pnpm peers check` passed. All production Docker targets built, both
+Compose files rendered, workflow YAML and actionlint checks passed, the dedicated migration image
+applied migrations to local PostgreSQL, and the production web/worker container smoke test passed.
+The real Mailpit magic-link journey passed six tests across `390x844` and `430x932`. Temporary
+storage objects and smoke containers were cleaned up.
+
+**Proposed commit sequence:** (1) production environment and dependency hardening, (2) web/worker
+readiness and lifecycle hardening, (3) production containers and smoke tooling, (4) CI release
+preflight gates, and (5) M3 operator documentation and verification evidence. These commits require
+explicit user approval.
+
 ## Cloudflare R2 storage migration (2026-07-18)
 
 - **Scope:** migrate the production object-storage configuration from Amazon S3 to Cloudflare R2

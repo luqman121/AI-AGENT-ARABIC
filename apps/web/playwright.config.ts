@@ -26,12 +26,14 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: `pnpm start --port ${PORT}`,
+    command: "pnpm start",
     env: {
       ...localEnv,
       AUTH_TRUST_HOST: "true",
       AUTH_URL: BASE_URL,
+      HOSTNAME: "127.0.0.1",
       NODE_ENV: "production",
+      PORT: String(PORT),
     },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

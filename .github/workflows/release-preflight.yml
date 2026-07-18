@@ -1,0 +1,87 @@
+name: Production release preflight
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      AUTH_SECRET: preflight-placeholder-preflight-123456
+      AUTH_URL: https://preflight.wakil.invalid
+      DATABASE_URL: postgres://wakil:preflight_only@127.0.0.1:5432/wakil
+      DAYTONA_API_KEY: preflight-placeholder
+      EMAIL_FROM: no-reply@wakil.invalid
+      MODEL_INPUT_COST_MICROS_PER_MILLION_TOKENS: 1
+      MODEL_OUTPUT_COST_MICROS_PER_MILLION_TOKENS: 1
+      NODE_ENV: test
+      OPENROUTER_API_KEY: preflight-placeholder
+      OPENROUTER_MODEL: preflight-placeholder
+      REDIS_URL: redis://127.0.0.1:6379
+      S3_BUCKET: wakil-preflight
+      S3_ENDPOINT: https://00000000000000000000000000000000.r2.cloudflarestorage.com
+      SMTP_HOST: smtp.wakil.invalid
+      SMTP_PORT: 465
+      TURBO_TELEMETRY_DISABLED: 1
+      WAKIL_IMAGE_TAG: preflight
+      WEB_S3_ACCESS_KEY_ID: preflight-placeholder
+      WEB_S3_SECRET_ACCESS_KEY: preflight-placeholder
+      WORKER_S3_ACCESS_KEY_ID: preflight-placeholder
+      WORKER_S3_SECRET_ACCESS_KEY: preflight-placeholder
+    steps:
+      - name: Check out immutable revision
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.1
+
+      - name: Activate pinned pnpm
+        run: |
+          corepack enable
+          corepack install
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate production Compose configuration
+        run: docker compose -f infra/docker-compose.production.yml config --quiet
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Integration and migration tests
+        run: pnpm test:integration
+
+      - name: Production build
+        run: pnpm build
+
+      - name: Build immutable production images
+        run: |
+          docker build --target web --tag "wakil-web:${GITHUB_SHA}" .
+          docker build --target worker --tag "wakil-worker:${GITHUB_SHA}" .
+          docker build --target migrate --tag "wakil-migrate:${GITHUB_SHA}" .
+
+      - name: Summarize deployment boundary
+        run: |
+          echo "Preflight passed for ${GITHUB_SHA}."
+          echo "This workflow does not migrate or deploy production."

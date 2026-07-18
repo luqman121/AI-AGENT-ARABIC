@@ -20,6 +20,8 @@ export async function enqueueRun(job: RunJobData): Promise<void> {
   await getQueue().add("run", job, {
     jobId: job.runId,
     removeOnComplete: true,
-    removeOnFail: true,
+    // Retain a bounded failed-job record for operational diagnosis. The
+    // database run and run_events remain the durable user-visible truth.
+    removeOnFail: { age: 7 * 24 * 60 * 60, count: 1_000 },
   });
 }

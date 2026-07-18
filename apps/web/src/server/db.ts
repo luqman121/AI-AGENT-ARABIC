@@ -9,7 +9,11 @@ const globalScope = globalThis as typeof globalThis & {
 };
 
 /** Lazy singleton PostgreSQL client, reused across dev hot reloads. */
-export function getDatabase(): DatabaseHandle["db"] {
+export function getDatabaseHandle(): DatabaseHandle {
   globalScope.__wakilDb ??= createDatabaseClient(getWebEnv().DATABASE_URL);
-  return globalScope.__wakilDb.db;
+  return globalScope.__wakilDb;
+}
+
+export function getDatabase(): DatabaseHandle["db"] {
+  return getDatabaseHandle().db;
 }

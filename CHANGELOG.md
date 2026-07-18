@@ -4,6 +4,27 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### M3 — Production Release Readiness
+
+- Added separate digest-pinned, non-root production images for the Next.js web service, BullMQ
+  worker, and one-shot Drizzle migration job, plus a private production Compose topology and
+  credential-safe build context.
+- Added dependency-aware web and worker readiness endpoints, structured redacted logging, bounded
+  worker concurrency and failed-job retention, and graceful worker shutdown for `SIGTERM` and
+  `SIGINT`.
+- Hardened runtime environment validation for PostgreSQL, Redis, SMTP, authentication callbacks,
+  Cloudflare R2, worker limits, and service-specific configuration without exposing values to the
+  browser or logs.
+- Expanded CI with formatting, lint, typecheck, unit/integration, production build, Compose,
+  container, dependency-audit, and workflow gates. Added a protected manual release-preflight
+  workflow that performs no migration or deployment.
+- Added safe production smoke tooling and operator runbooks for environment inventory, deployment,
+  architecture, migrations, Redis, monitoring and alerts, backup/restore, rollback, security,
+  mobile-device checks, and the release procedure.
+- Verified all local quality, integration, storage, workflow, Compose, image-build, migration, and
+  container smoke gates. The real email sign-in journey passed at both required mobile viewports. No
+  production deployment or provider-side configuration was performed.
+
 ### Cloudflare R2 storage migration
 
 - Switched production artifact configuration from Amazon S3 endpoints to Cloudflare R2's

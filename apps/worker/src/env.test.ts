@@ -29,6 +29,36 @@ describe("readWorkerEnv", () => {
 
     expect(result.LOG_LEVEL).toBe("info");
     expect(result.NODE_ENV).toBe("development");
+    expect(result.WORKER_CONCURRENCY).toBe(4);
+    expect(result.WORKER_HEALTH_PORT).toBe(3001);
+  });
+
+  it("validates database and Redis protocols and operational limits", () => {
+    expect(() =>
+      readWorkerEnv({
+        DATABASE_URL: "https://db.example",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        ...modelEnv,
+        ...storageEnv,
+      }),
+    ).toThrowError(/DATABASE_URL/);
+    expect(() =>
+      readWorkerEnv({
+        DATABASE_URL: "postgres://wakil:local@127.0.0.1:5432/wakil",
+        REDIS_URL: "https://redis.example",
+        ...modelEnv,
+        ...storageEnv,
+      }),
+    ).toThrowError(/REDIS_URL/);
+    expect(() =>
+      readWorkerEnv({
+        DATABASE_URL: "postgres://wakil:local@127.0.0.1:5432/wakil",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        WORKER_CONCURRENCY: "0",
+        ...modelEnv,
+        ...storageEnv,
+      }),
+    ).toThrowError(/WORKER_CONCURRENCY/);
   });
 
   it("redacts invalid values from its error", () => {
