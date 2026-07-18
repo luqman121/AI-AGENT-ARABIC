@@ -15,6 +15,10 @@
       "types": "./src/client.ts",
       "default": "./dist/client.js"
     },
+    "./migrate": {
+      "types": "./src/migrate.ts",
+      "default": "./dist/migrate.js"
+    },
     "./schema": {
       "types": "./src/schema/index.ts",
       "default": "./dist/schema/index.js"
