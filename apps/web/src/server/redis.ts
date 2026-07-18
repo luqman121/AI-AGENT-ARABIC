@@ -7,7 +7,7 @@ const globalScope = globalThis as typeof globalThis & {
 };
 
 /**
- * Redis is transport-only in M1 (rate-limit decisions). The client fails
+ * Redis is transport-only (rate-limit and queue decisions). The client fails
  * fast instead of queueing commands so callers can fail closed.
  */
 export function getRedis(): Redis {
@@ -18,4 +18,9 @@ export function getRedis(): Redis {
     maxRetriesPerRequest: 1,
   });
   return globalScope.__wakilRedis;
+}
+
+/** A dedicated connection for pub/sub; subscriber mode blocks a shared client. */
+export function createRedisSubscriber(): Redis {
+  return new Redis(getWebEnv().REDIS_URL, { maxRetriesPerRequest: null });
 }
