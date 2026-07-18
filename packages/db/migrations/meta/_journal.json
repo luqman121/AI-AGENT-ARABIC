@@ -8,6 +8,13 @@
       "when": 1784221999246,
       "tag": "0000_black_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784362532912,
+      "tag": "0001_lowly_genesis",
+      "breakpoints": true
     }
   ]
 }

@@ -38,6 +38,8 @@ describe("database migrations", () => {
         "conversations",
         "idempotency_keys",
         "projects",
+        "run_events",
+        "runs",
         "sessions",
         "users",
         "verification_tokens",
@@ -96,5 +98,26 @@ describe("database migrations", () => {
         values (${secondWorkspaceId}, ${firstProjectId})
       `,
     ).rejects.toMatchObject({ code: "23503" });
+  });
+
+  it("creates the runs backbone with tenant and active-run constraints", async () => {
+    const tables = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public' and table_name in ('runs', 'run_events')
+      order by table_name
+    `;
+    expect(tables.map((r) => r.table_name)).toEqual(["run_events", "runs"]);
+
+    const activeIdx = await sql<{ indexname: string }[]>`
+      select indexname from pg_indexes
+      where tablename = 'runs' and indexname = 'runs_one_active_per_project'
+    `;
+    expect(activeIdx).toHaveLength(1);
+
+    const seqUnique = await sql<{ conname: string }[]>`
+      select conname from pg_constraint
+      where conname = 'run_events_run_seq_unique'
+    `;
+    expect(seqUnique).toHaveLength(1);
   });
 });
