@@ -14,6 +14,7 @@ export type RunSummary = {
   id: string;
   status: RunStatus;
   errorCode: string | null;
+  cancelRequestedAtIso: string | null;
 };
 
 /** Latest run for a project, tenant-scoped; null hides cross-tenant existence. */
@@ -27,7 +28,12 @@ export async function getLatestRun(
 
   const row = (
     await db
-      .select({ errorCode: runs.errorCode, id: runs.id, status: runs.status })
+      .select({
+        cancelRequestedAt: runs.cancelRequestedAt,
+        errorCode: runs.errorCode,
+        id: runs.id,
+        status: runs.status,
+      })
       .from(runs)
       .where(and(eq(runs.projectId, project.id), eq(runs.workspaceId, ctx.workspaceId)))
       .orderBy(desc(runs.createdAt))
@@ -35,7 +41,12 @@ export async function getLatestRun(
   )[0];
 
   if (!row) return null;
-  return { errorCode: row.errorCode, id: row.id, status: row.status as RunStatus };
+  return {
+    cancelRequestedAtIso: row.cancelRequestedAt?.toISOString() ?? null,
+    errorCode: row.errorCode,
+    id: row.id,
+    status: row.status as RunStatus,
+  };
 }
 
 /** Verifies the run belongs to the authenticated tenant and requested project. */

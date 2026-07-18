@@ -5,6 +5,7 @@ import { requireAuthorizedContext } from "../../../../src/server/auth/session";
 import { getDatabase } from "../../../../src/server/db";
 import { getProjectConversation } from "../../../../src/server/features/conversations/queries";
 import { getProjectById } from "../../../../src/server/features/projects/queries";
+import { getLatestRun, getRunEventsAfter } from "../../../../src/server/features/runs/queries";
 import { ConversationView } from "./conversation-view";
 
 export async function generateMetadata({
@@ -30,9 +31,16 @@ export default async function ProjectConversationPage({
   const conversation = await getProjectConversation(getDatabase(), ctx, projectId);
   if (!conversation) notFound();
 
+  const latestRun = await getLatestRun(getDatabase(), ctx, projectId);
+  const initialEvents = latestRun
+    ? await getRunEventsAfter(getDatabase(), ctx, projectId, latestRun.id, 0)
+    : [];
+
   return (
     <ConversationView
       archived={conversation.project.status === "archived"}
+      initialEvents={initialEvents}
+      initialRun={latestRun}
       messages={conversation.messages.map((message) => ({
         content: message.content,
         createdAtIso: message.createdAt.toISOString(),

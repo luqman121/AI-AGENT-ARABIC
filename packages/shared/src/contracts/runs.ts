@@ -72,7 +72,10 @@ const TYPE_LABELS: Record<RunEventType, string> = {
 };
 
 /** Arabic label for a persisted event; step events use their step label. */
-export function runEventLabel(payload: { type: RunEventType; stepKey?: RunStepKey }): string {
+export function runEventLabel(payload: {
+  type: RunEventType;
+  stepKey?: RunStepKey | undefined;
+}): string {
   if (payload.type === "run.step" && payload.stepKey) return STEP_LABELS[payload.stepKey];
   return TYPE_LABELS[payload.type];
 }

@@ -15,6 +15,7 @@ import {
   Toast,
   type ToastData,
 } from "@wakil/ui";
+import type { RunEventPayload } from "@wakil/shared";
 import { Archive, ArrowRight, EllipsisVertical, Eye, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,6 +28,7 @@ import {
   archiveProjectAction,
   renameProjectAction,
 } from "../../../../src/server/actions/projects";
+import { RunPanel, type RunPanelSummary } from "./run-panel";
 
 export type ConversationMessage = {
   id: string;
@@ -36,12 +38,21 @@ export type ConversationMessage = {
 
 type ViewProps = {
   archived: boolean;
+  initialEvents: RunEventPayload[];
+  initialRun: RunPanelSummary | null;
   messages: ConversationMessage[];
   projectId: string;
   title: string;
 };
 
-export function ConversationView({ archived, messages, projectId, title }: ViewProps) {
+export function ConversationView({
+  archived,
+  initialEvents,
+  initialRun,
+  messages,
+  projectId,
+  title,
+}: ViewProps) {
   const router = useRouter();
   const [draft, setDraft] = useState("");
   const [appendKey, setAppendKey] = useState(newIdempotencyKey);
@@ -203,6 +214,12 @@ export function ConversationView({ archived, messages, projectId, title }: ViewP
             </Link>
           </StatusBanner>
         ) : null}
+        <RunPanel
+          archived={archived}
+          initialEvents={initialEvents}
+          initialRun={initialRun}
+          projectId={projectId}
+        />
         <div className="flex flex-1 flex-col justify-end gap-4">
           {messages.map((message) => (
             <MessageItem

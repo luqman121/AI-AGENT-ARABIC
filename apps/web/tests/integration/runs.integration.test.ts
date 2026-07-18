@@ -82,6 +82,7 @@ describe.sequential("run services", () => {
     });
 
     await expect(getLatestRun(harness.db, owner, projectId)).resolves.toEqual({
+      cancelRequestedAtIso: null,
       errorCode: null,
       id: result.data.runId,
       status: "queued",
@@ -135,8 +136,16 @@ describe.sequential("run services", () => {
       .mockResolvedValueOnce(undefined);
     const input = { idempotencyKey: key("run-enqueue-retry"), projectId };
 
-    const first = await startRun({ db: harness.db, enqueueRun, redis: harness.redis }, owner, input);
-    const second = await startRun({ db: harness.db, enqueueRun, redis: harness.redis }, owner, input);
+    const first = await startRun(
+      { db: harness.db, enqueueRun, redis: harness.redis },
+      owner,
+      input,
+    );
+    const second = await startRun(
+      { db: harness.db, enqueueRun, redis: harness.redis },
+      owner,
+      input,
+    );
 
     expect(first).toMatchObject({ code: "INTERNAL_ERROR", ok: false, retryable: true });
     expect(second.ok).toBe(true);
@@ -209,11 +218,10 @@ describe.sequential("run services", () => {
   it("allows only the owning tenant to request cancellation of an active run", async () => {
     const projectId = await createProject(owner, "تقرير المبيعات");
     const enqueueRun = vi.fn(async () => undefined);
-    const started = await startRun(
-      { db: harness.db, enqueueRun, redis: harness.redis },
-      owner,
-      { idempotencyKey: key("cancel-start"), projectId },
-    );
+    const started = await startRun({ db: harness.db, enqueueRun, redis: harness.redis }, owner, {
+      idempotencyKey: key("cancel-start"),
+      projectId,
+    });
     expect(started.ok).toBe(true);
     if (!started.ok) return;
 
@@ -263,11 +271,10 @@ describe.sequential("run services", () => {
   it("treats cancellation of a terminal run as an idempotent no-op", async () => {
     const projectId = await createProject(owner, "عرض مكتمل");
     const enqueueRun = vi.fn(async () => undefined);
-    const started = await startRun(
-      { db: harness.db, enqueueRun, redis: harness.redis },
-      owner,
-      { idempotencyKey: key("terminal-start"), projectId },
-    );
+    const started = await startRun({ db: harness.db, enqueueRun, redis: harness.redis }, owner, {
+      idempotencyKey: key("terminal-start"),
+      projectId,
+    });
     expect(started.ok).toBe(true);
     if (!started.ok) return;
 
@@ -276,15 +283,11 @@ describe.sequential("run services", () => {
       .set({ finishedAt: new Date(), status: "succeeded" })
       .where(eq(runs.id, started.data.runId));
 
-    const result = await cancelRun(
-      { db: harness.db, enqueueRun, redis: harness.redis },
-      owner,
-      {
-        idempotencyKey: key("terminal-cancel"),
-        projectId,
-        runId: started.data.runId,
-      },
-    );
+    const result = await cancelRun({ db: harness.db, enqueueRun, redis: harness.redis }, owner, {
+      idempotencyKey: key("terminal-cancel"),
+      projectId,
+      runId: started.data.runId,
+    });
 
     expect(result).toEqual({ data: { runId: started.data.runId }, ok: true });
     const row = (
