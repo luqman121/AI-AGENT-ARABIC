@@ -37,6 +37,10 @@ test("service worker caches only the public shell allowlist", async ({ page, con
     const registration = await navigator.serviceWorker.getRegistration();
     return Boolean(registration?.active);
   });
+  // `active` can be observable just before clients.claim() has attached the
+  // worker to this tab. Offline navigation is interceptable only once this
+  // page has a controller.
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await page.waitForFunction(async () => (await caches.keys()).length > 0);
 
   const cachedUrls = await page.evaluate(async () => {
@@ -54,7 +58,7 @@ test("service worker caches only the public shell allowlist", async ({ page, con
   expect(cachedUrls.length).toBeGreaterThan(0);
   for (const url of cachedUrls) {
     expect(
-      url === "/offline" ||
+      url === "/offline.html" ||
         url === "/manifest.webmanifest" ||
         url.startsWith("/fonts/") ||
         url.startsWith("/icons/"),

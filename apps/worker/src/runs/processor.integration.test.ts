@@ -11,7 +11,7 @@ import {
   users,
   workspaces,
 } from "@wakil/db/schema";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Redis } from "ioredis";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
@@ -53,7 +53,7 @@ const modelDeps = {
   modelConfigKey: "openrouter",
 };
 
-let container: StartedPostgreSqlContainer;
+let container: StartedPostgreSqlContainer | undefined;
 let handle: ReturnType<typeof createDatabaseClient>;
 let redis: Redis;
 
@@ -84,9 +84,15 @@ async function seedRun(
 }
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("postgres:17.10-alpine3.23").start();
-  await migrateDatabase(container.getConnectionUri());
-  handle = createDatabaseClient(container.getConnectionUri());
+  const externalDatabaseUrl = process.env.TEST_DATABASE_URL;
+  const connectionUri = externalDatabaseUrl
+    ? externalDatabaseUrl
+    : await new PostgreSqlContainer("postgres:17.10-alpine3.23").start().then((started) => {
+        container = started;
+        return started.getConnectionUri();
+      });
+  await migrateDatabase(connectionUri);
+  handle = createDatabaseClient(connectionUri);
   // A real Redis is not required for these assertions; use a throwaway that no-ops publish.
   redis = new Redis({ lazyConnect: true, maxRetriesPerRequest: 1 });
   redis.publish = (async () => 0) as unknown as Redis["publish"];
@@ -113,18 +119,30 @@ afterAll(async () => {
   await container?.stop();
 });
 
-it("executes a reviewed plan in the sandbox and persists one private artifact", async () => {
+it("keeps a completed plan reviewable, then executes an explicitly started run", async () => {
   const planRunId = "50000000-0000-4000-8000-000000000012";
   await seedRun(planRunId);
   await expect(
     processRun(
-      { db: handle.db, redis, ...modelDeps },
+      {
+        db: handle.db,
+        redis,
+        ...modelDeps,
+      },
       { runId: planRunId, workspaceId: ids.workspace, projectId: ids.project },
     ),
   ).resolves.toBe("succeeded");
 
+  const automaticChildren = await handle.db
+    .select({ id: runs.id })
+    .from(runs)
+    .where(and(eq(runs.parentRunId, planRunId), eq(runs.kind, "execution")));
+  expect(automaticChildren).toHaveLength(0);
+
+  // Mirrors the web API's explicit "بدء التنفيذ" transaction.
   const executionRunId = "50000000-0000-4000-8000-000000000013";
   await seedRun(executionRunId, { kind: "execution", parentRunId: planRunId });
+
   const uploaded: Array<{ previewSize: number; zipSize: number }> = [];
   const status = await processRun(
     {

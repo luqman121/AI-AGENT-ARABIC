@@ -25,6 +25,8 @@ export const artifacts = pgTable(
     projectId: uuid("project_id").notNull(),
     runId: uuid("run_id").notNull(),
     kind: text("kind").notNull(),
+    title: text("title").notNull().default("نتيجة المشروع"),
+    fileName: text("file_name").notNull().default("wakil-result.zip"),
     previewObjectKey: text("preview_object_key").notNull(),
     downloadObjectKey: text("download_object_key").notNull(),
     previewMediaType: text("preview_media_type").notNull(),
@@ -37,7 +39,6 @@ export const artifacts = pgTable(
   },
   (table) => [
     unique("artifacts_id_workspace_unique").on(table.id, table.workspaceId),
-    unique("artifacts_run_unique").on(table.runId),
     unique("artifacts_preview_object_key_unique").on(table.previewObjectKey),
     unique("artifacts_download_object_key_unique").on(table.downloadObjectKey),
     foreignKey({
@@ -55,7 +56,23 @@ export const artifacts = pgTable(
       table.projectId,
       table.createdAt,
     ),
-    check("artifacts_kind_check", sql`${table.kind} = 'static_site'`),
+    index("artifacts_workspace_run_created_idx").on(
+      table.workspaceId,
+      table.runId,
+      table.createdAt,
+    ),
+    check(
+      "artifacts_kind_check",
+      sql`${table.kind} in ('static_site', 'document', 'presentation', 'spreadsheet', 'image')`,
+    ),
+    check(
+      "artifacts_title_length_check",
+      sql`char_length(btrim(${table.title})) between 1 and 200`,
+    ),
+    check(
+      "artifacts_file_name_length_check",
+      sql`char_length(btrim(${table.fileName})) between 1 and 255`,
+    ),
     check(
       "artifacts_size_check",
       sql`${table.previewSizeBytes} between 1 and 500000 and ${table.downloadSizeBytes} between 1 and 2000000`,

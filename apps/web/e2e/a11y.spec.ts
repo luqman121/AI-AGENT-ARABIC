@@ -54,10 +54,14 @@ test("keyboard-only create flow with visible focus", async ({ page }) => {
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "تخطَّ إلى المحتوى" })).toBeFocused();
 
-  // Reach the idea field, fill, reach the send button, submit.
+  // Reach the idea field, fill, then traverse every keyboard action in DOM order.
   await page.getByLabel("اوصف فكرتك").focus();
   await expect(page.getByLabel("اوصف فكرتك")).toBeFocused();
   await page.keyboard.type("أنشئ جدولًا للمصروفات الشهرية");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "إرفاق ملف" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "تسجيل رسالة صوتية" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "إرسال الطلب" })).toBeFocused();
   await page.keyboard.press("Enter");

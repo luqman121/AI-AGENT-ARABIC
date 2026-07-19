@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+export const OUTPUT_KINDS = [
+  "static_site",
+  "web_app",
+  "pdf",
+  "spreadsheet",
+  "image",
+  "audio",
+  "document",
+  "presentation",
+  "other",
+] as const;
+export type OutputKind = (typeof OUTPUT_KINDS)[number];
+
 import {
   idempotencyKeySchema,
   projectIdSchema,
@@ -11,6 +24,7 @@ export const createProjectInputSchema = z.object({
   /** Omitted when the user only describes their idea; the server derives one. */
   title: projectTitleSchema.optional(),
   request: requestTextSchema,
+  outputKind: z.enum(OUTPUT_KINDS).default("static_site"),
   idempotencyKey: idempotencyKeySchema,
 });
 

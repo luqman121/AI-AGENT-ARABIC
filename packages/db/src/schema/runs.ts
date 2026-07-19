@@ -83,6 +83,9 @@ export const runs = pgTable(
     uniqueIndex("runs_one_active_per_project")
       .on(table.projectId)
       .where(sql`${table.status} in ('queued', 'running')`),
+    uniqueIndex("runs_parent_run_unique")
+      .on(table.parentRunId)
+      .where(sql`${table.parentRunId} is not null`),
     uniqueIndex("runs_assistant_message_unique")
       .on(table.assistantMessageId)
       .where(sql`${table.assistantMessageId} is not null`),

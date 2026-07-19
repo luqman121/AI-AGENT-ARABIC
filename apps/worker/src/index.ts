@@ -1,6 +1,8 @@
 import { createDatabaseClient } from "@wakil/db";
+import { runs } from "@wakil/db/schema";
 import { RUNS_QUEUE_NAME, type RunJobData } from "@wakil/shared";
-import { Worker } from "bullmq";
+import { Queue, Worker } from "bullmq";
+import { eq } from "drizzle-orm";
 import { Redis } from "ioredis";
 import type { Server } from "node:http";
 import { pathToFileURL } from "node:url";
@@ -55,8 +57,11 @@ async function main(): Promise<void> {
   const healthState = { ready: false };
   let healthServer: Server | undefined;
   let publisher: Redis | undefined;
-  let queueConnection: Redis | undefined;
+  let dispatchQueue: Queue<RunJobData> | undefined;
+  let producerConnection: Redis | undefined;
+  let workerConnection: Redis | undefined;
   let runWorker: Worker<RunJobData> | undefined;
+  let reconciliationTimer: ReturnType<typeof setInterval> | undefined;
 
   try {
     const readiness = await checkReadiness({
@@ -86,7 +91,23 @@ async function main(): Promise<void> {
       connectTimeout: 5000,
       maxRetriesPerRequest: null,
     });
-    queueConnection = blockingConnection;
+    workerConnection = blockingConnection;
+    const boundedProducerConnection = new Redis(env.REDIS_URL, {
+      connectTimeout: 5000,
+      maxRetriesPerRequest: 1,
+    });
+    producerConnection = boundedProducerConnection;
+    dispatchQueue = new Queue<RunJobData>(RUNS_QUEUE_NAME, {
+      connection: boundedProducerConnection,
+    });
+    const enqueue = async (runJob: RunJobData) => {
+      if (!dispatchQueue) throw new Error("run dispatch queue is unavailable");
+      await dispatchQueue.add("run", runJob, {
+        jobId: runJob.runId,
+        removeOnComplete: true,
+        removeOnFail: { age: 7 * 24 * 60 * 60, count: 1_000 },
+      });
+    };
     const eventPublisher = new Redis(env.REDIS_URL, {
       connectTimeout: 5000,
       maxRetriesPerRequest: 1,
@@ -128,6 +149,31 @@ async function main(): Promise<void> {
     });
 
     await runWorker.waitUntilReady();
+    let reconciling = false;
+    const reconcileQueuedRuns = async () => {
+      if (reconciling) return;
+      reconciling = true;
+      try {
+        const queuedRuns = await database.db
+          .select({ projectId: runs.projectId, runId: runs.id, workspaceId: runs.workspaceId })
+          .from(runs)
+          .where(eq(runs.status, "queued"))
+          .limit(100);
+        await Promise.all(queuedRuns.map((run) => enqueue(run)));
+        if (queuedRuns.length > 0) {
+          logger.info({ count: queuedRuns.length }, "reconciled queued runs with BullMQ");
+        }
+      } catch (error) {
+        logger.error(
+          { error: error instanceof Error ? error.name : "UnknownError" },
+          "run reconciliation failed",
+        );
+      } finally {
+        reconciling = false;
+      }
+    };
+    await reconcileQueuedRuns();
+    reconciliationTimer = setInterval(() => void reconcileQueuedRuns(), 30_000);
     healthState.ready = true;
     logger.info(
       { concurrency: env.WORKER_CONCURRENCY, queue: RUNS_QUEUE_NAME, state: "consuming" },
@@ -142,11 +188,14 @@ async function main(): Promise<void> {
     healthState.ready = false;
   } finally {
     healthState.ready = false;
+    if (reconciliationTimer) clearInterval(reconciliationTimer);
     if (runWorker) await runWorker.close().catch(() => undefined);
     await Promise.allSettled([
       database.close(),
       redis.quit(),
-      ...(queueConnection ? [queueConnection.quit()] : []),
+      ...(dispatchQueue ? [dispatchQueue.close()] : []),
+      ...(producerConnection ? [producerConnection.quit()] : []),
+      ...(workerConnection ? [workerConnection.quit()] : []),
       ...(publisher ? [publisher.quit()] : []),
       ...(healthServer ? [closeWorkerHealth(healthServer)] : []),
     ]);
@@ -157,8 +206,14 @@ async function main(): Promise<void> {
 const entryPath = process.argv[1];
 if (entryPath && import.meta.url === pathToFileURL(entryPath).href) {
   main().catch((error: unknown) => {
-    const message = error instanceof Error ? error.name : "UnknownError";
-    process.stderr.write(`Worker startup failed: ${message}\n`);
+    const detail =
+      error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : "UnknownError: unknown startup error";
+    const safeDetail = detail
+      .replace(/((?:postgres(?:ql)?|redis|https?):\/\/)[^@\s]+@/gi, "$1[REDACTED]@")
+      .replace(/(api[_-]?key|token|secret|password)=([^\s&]+)/gi, "$1=[REDACTED]");
+    process.stderr.write(`Worker startup failed: ${safeDetail}\n`);
     process.exitCode = 1;
   });
 }

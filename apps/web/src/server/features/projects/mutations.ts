@@ -74,7 +74,11 @@ export async function createProject(
   const scope = {
     key: input.idempotencyKey,
     operation: "project.create",
-    requestHash: hashRequest("project.create", { request: input.request, title }),
+    requestHash: hashRequest("project.create", {
+      outputKind: input.outputKind,
+      request: input.request,
+      title,
+    }),
     userId: ctx.userId,
     workspaceId: ctx.workspaceId,
   };
@@ -94,6 +98,7 @@ export async function createProject(
           .insert(projects)
           .values({
             createdByUserId: ctx.userId,
+            outputKind: input.outputKind,
             title,
             workspaceId: ctx.workspaceId,
           })

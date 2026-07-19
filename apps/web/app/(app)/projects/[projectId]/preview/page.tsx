@@ -1,3 +1,4 @@
+import { projectIdSchema } from "@wakil/shared";
 import { Button, AppHeader, EmptyState, PageShell, StatusBanner } from "@wakil/ui";
 import { Download, ExternalLink, MonitorPlay } from "lucide-react";
 import type { Metadata } from "next";
@@ -6,7 +7,10 @@ import { notFound } from "next/navigation";
 import { requireAuthorizedContext } from "../../../../../src/server/auth/session";
 import { getDatabase } from "../../../../../src/server/db";
 import { getWebEnv } from "../../../../../src/env";
-import { getLatestArtifact } from "../../../../../src/server/features/artifacts/queries";
+import {
+  getArtifactById,
+  getLatestArtifact,
+} from "../../../../../src/server/features/artifacts/queries";
 import { getArtifactStore } from "../../../../../src/server/features/artifacts/store";
 import { getProjectById } from "../../../../../src/server/features/projects/queries";
 import { BackToProjectButton } from "./back-button";
@@ -15,15 +19,22 @@ export const metadata: Metadata = { title: "المعاينة" };
 
 export default async function ProjectPreviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ artifact?: string }>;
 }) {
-  const { projectId } = await params;
+  const [{ projectId }, query] = await Promise.all([params, searchParams]);
+  if (!projectIdSchema.safeParse(projectId).success) notFound();
   const ctx = await requireAuthorizedContext();
   const db = getDatabase();
   const project = await getProjectById(db, ctx, projectId);
   if (!project) notFound();
-  const artifact = await getLatestArtifact(db, ctx, projectId);
+  const artifactId = query.artifact;
+  if (artifactId && !projectIdSchema.safeParse(artifactId).success) notFound();
+  const artifact = artifactId
+    ? await getArtifactById(db, ctx, projectId, artifactId)
+    : await getLatestArtifact(db, ctx, projectId);
 
   if (!artifact) {
     return (
@@ -44,10 +55,7 @@ export default async function ProjectPreviewPage({
   }
 
   const artifactStore = getArtifactStore();
-  const [previewUrl, downloadUrl] = await Promise.all([
-    artifactStore.signPreview(artifact.previewObjectKey, 300),
-    artifactStore.signDownload(artifact.downloadObjectKey, 300),
-  ]);
+  const previewUrl = await artifactStore.signPreview(artifact.previewObjectKey, 300);
   if (new URL(previewUrl).origin === new URL(getWebEnv().AUTH_URL).origin) {
     throw new Error("Artifact preview origin must differ from the application origin");
   }
@@ -60,7 +68,7 @@ export default async function ProjectPreviewPage({
       />
       <PageShell>
         <StatusBanner className="mb-4" tone="info">
-          اجتاز الموقع التحقق المعزول. روابط المعاينة والتنزيل خاصة ومؤقتة لخمس دقائق.
+          اجتازت النتيجة التحقق المعزول. المعاينة خاصة ومؤقتة، والتنزيل يمر عبر صلاحيات المشروع.
         </StatusBanner>
         <div className="overflow-hidden rounded-md border border-line bg-white shadow-sm">
           <iframe
@@ -73,7 +81,7 @@ export default async function ProjectPreviewPage({
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Button asChild>
-            <a href={downloadUrl} rel="nofollow noreferrer">
+            <a href={`/api/projects/${projectId}/artifacts/${artifact.id}/download`} rel="nofollow">
               <Download aria-hidden className="size-5" />
               تنزيل ملف ZIP
             </a>

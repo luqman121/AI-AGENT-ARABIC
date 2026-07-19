@@ -181,7 +181,7 @@ describe("project lifecycle", () => {
       idempotencyKey: key("append-1"),
       projectId: created.data.projectId,
     });
-    expect(appended.ok).toBe(true);
+    expect(appended.ok, JSON.stringify(appended)).toBe(true);
 
     const conversation = await getProjectConversation(harness.db, tenant, created.data.projectId);
     expect(conversation?.messages).toHaveLength(2);
@@ -238,24 +238,30 @@ describe("idempotency", () => {
   });
 
   it("does not create duplicates under concurrent identical requests", async () => {
+    const concurrentTenant = await harness.createTenant("concurrent@wakil.test");
     const input = {
       idempotencyKey: key("idem-concurrent"),
       request: "جدول متابعة المخزون",
       title: "جدول المخزون",
     };
     const results = await Promise.all([
-      createProject(deps(), tenant, input),
-      createProject(deps(), tenant, input),
-      createProject(deps(), tenant, input),
+      createProject(deps(), concurrentTenant, input),
+      createProject(deps(), concurrentTenant, input),
+      createProject(deps(), concurrentTenant, input),
     ]);
     const ids = results.map((r) => (r.ok ? r.data.projectId : null));
-    expect(ids.every(Boolean)).toBe(true);
+    expect(ids.every(Boolean), JSON.stringify(results)).toBe(true);
     expect(new Set(ids).size).toBe(1);
 
     const rows = await harness.db
       .select({ id: projects.id })
       .from(projects)
-      .where(and(eq(projects.workspaceId, tenant.workspaceId), eq(projects.title, "جدول المخزون")));
+      .where(
+        and(
+          eq(projects.workspaceId, concurrentTenant.workspaceId),
+          eq(projects.title, "جدول المخزون"),
+        ),
+      );
     expect(rows).toHaveLength(1);
   });
 

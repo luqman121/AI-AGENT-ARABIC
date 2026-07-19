@@ -4,6 +4,23 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Private attachments, durable execution, and mobile verification
+
+- Added tenant-scoped private input attachments for project creation and follow-up messages, with
+  content-signature validation, a 10 MiB per-file limit, an atomic six-file project limit, upload
+  rate limiting, immutable storage keys, and orphan-object cleanup when database persistence fails.
+- Added authorized attachment metadata/download APIs and kept attachment objects private in the
+  S3-compatible store. Voice recording/transcription remains a truthful disabled affordance and is
+  not claimed as implemented.
+- Improved queued-run reconciliation, separated BullMQ blocking and producer Redis connections, and
+  hardened planning-to-execution recovery and private artifact preview/download handling.
+- Improved RTL/mobile behavior, dynamic composer clearance, 44 px touch targets, live regions, error
+  announcements, keyboard focus, offline mutation feedback, and Blob URL cleanup.
+- Added a strict service-worker allowlist and standalone offline fallback without caching
+  authenticated HTML, RSC, API, project, prompt, or mutation responses.
+- Verified the complete 46-check Playwright mobile gate at `390x844` and `430x932`, including
+  accessibility, keyboard, offline, PWA, durable real-run, visual-state, and private artifact flows.
+
 ### Mobile create and agent-workspace redesign
 
 - Redesigned the `/new` create screen to match a mobile agent-app reference layout: header with a
@@ -15,10 +32,9 @@ All notable changes to Wakil are documented in this file.
   `PDF`, `Excel`, `صورة`, `بحث`) shown disabled with a "قريبًا" label for layout parity without
   claiming a generation capability that does not exist. No new backend artifact types were added;
   per `GOAL.md`, non-website generation stays out of scope until a separately approved milestone.
-- Redesigned `RequestComposer` with an attachment and a voice-input affordance shown for visual
-  parity but kept disabled (Wakil does not accept uploads or voice input yet), and a `sticky` prop
-  so the same component serves both the fixed conversation composer and the in-flow create-screen
-  composer.
+- Redesigned `RequestComposer` with a functional private attachment picker, a truthful disabled
+  voice-input affordance, and a `sticky` prop so the same component serves both the fixed
+  conversation composer and the in-flow create-screen composer.
 - Reordered the project conversation so saved messages render before the run panel (the submitted
   request appears at the top, with live agent status directly beneath it), redesigned the run
   panel's execution log into an `ExecutionTimeline` with per-row status icons and an expand/collapse

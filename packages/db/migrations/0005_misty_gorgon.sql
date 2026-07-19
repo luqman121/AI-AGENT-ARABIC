@@ -1,0 +1,2 @@
+ALTER TABLE "projects" DROP CONSTRAINT "projects_output_kind_check";--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "projects_output_kind_check" CHECK ("projects"."output_kind" in ('static_site', 'web_app', 'pdf', 'spreadsheet', 'image', 'audio', 'document', 'presentation', 'other'));

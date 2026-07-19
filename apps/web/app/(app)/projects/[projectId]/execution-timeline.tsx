@@ -1,68 +1,172 @@
 "use client";
 
-import { runEventLabel, type RunEventPayload } from "@wakil/shared";
-import { Check, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { runEventLabel, type RunEventPayload, type RunKind, type RunStatus } from "@wakil/shared";
+import { Check, Circle, LoaderCircle, X } from "lucide-react";
 
-const COLLAPSE_THRESHOLD = 5;
-
-/**
- * The visible, ordered execution log. Every persisted event stays in the
- * DOM (list role + item text are a load-bearing test contract) — collapsing
- * only hides older rows behind a toggle that defaults open, so nothing a
- * screen reader or a saved-state assertion depends on disappears silently.
- */
-export function ExecutionTimeline({
-  events,
-  isActive,
-}: {
+export type ExecutionTimelineProps = {
   events: RunEventPayload[];
-  isActive: boolean;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const collapsible = events.length > COLLAPSE_THRESHOLD;
-  const visible = collapsible && !expanded ? events.slice(-3) : events;
+  runKind: RunKind;
+  status: RunStatus;
+};
+
+type StageState = "active" | "completed" | "failed" | "pending";
+
+const STAGE_STATE_LABEL: Record<StageState, string> = {
+  active: "جارٍ التنفيذ",
+  completed: "مكتملة",
+  failed: "فشلت",
+  pending: "بانتظار التنفيذ",
+};
+
+const STAGES = [
+  { key: "understanding", label: "فهم الطلب", description: "قراءة المتطلبات وتحديد الهدف" },
+  { key: "attachments", label: "تحليل الملفات", description: "استخراج السياق من المرفقات المتاحة" },
+  {
+    key: "planning",
+    label: "تجهيز خطة التنفيذ",
+    description: "ترتيب الخطوات واختيار طريقة الإنجاز",
+  },
+  { key: "generating", label: "إنشاء المحتوى", description: "تنفيذ الخطة وإنشاء النتيجة" },
+  { key: "designing", label: "تصميم النتيجة", description: "تجهيز العرض والتنسيق النهائي" },
+  { key: "reviewing", label: "مراجعة الجودة", description: "فحص النتيجة والتحقق من سلامتها" },
+  { key: "finalizing", label: "تجهيز الملف النهائي", description: "حفظ الملفات وتأمين روابطها" },
+  { key: "complete", label: "اكتمل العمل", description: "النتيجة جاهزة للمعاينة والتنزيل" },
+] as const;
+
+function progressFor(runKind: RunKind, events: RunEventPayload[], status: RunStatus) {
+  if (status === "succeeded") return 100;
+  const types = new Set(events.map((event) => event.type));
+  if (runKind === "planning") {
+    if (types.has("assistant.completed")) return 44;
+    if (types.has("assistant.delta")) return 36;
+    if (types.has("agent.started")) return 30;
+    if (types.has("run.started")) return 12;
+    return 5;
+  }
+  if (types.has("artifact.ready")) return 98;
+  if (types.has("artifact.uploading")) return 93;
+  if (types.has("sandbox.validated")) return 86;
+  if (types.has("sandbox.created")) return 74;
+  if (types.has("artifact.generating")) return 65;
+  if (types.has("run.started")) return 52;
+  return 48;
+}
+
+function activeStageIndex(runKind: RunKind, events: RunEventPayload[], status: RunStatus) {
+  if (status === "succeeded") return STAGES.length - 1;
+  const types = new Set(events.map((event) => event.type));
+  if (runKind === "planning") {
+    if (types.has("agent.started") || types.has("assistant.delta")) return 2;
+    if (types.has("run.started")) return 1;
+    return 0;
+  }
+  if (types.has("artifact.ready")) return 7;
+  if (types.has("artifact.uploading")) return 6;
+  if (types.has("sandbox.validated")) return 6;
+  if (types.has("sandbox.created")) return 4;
+  return 3;
+}
+
+function stateFor(index: number, activeIndex: number, status: RunStatus): StageState {
+  if (status === "failed" || status === "cancelled") {
+    if (index < activeIndex) return "completed";
+    if (index === activeIndex) return "failed";
+    return "pending";
+  }
+  if (index < activeIndex || status === "succeeded") return "completed";
+  if (index === activeIndex) return "active";
+  return "pending";
+}
+
+function StageIcon({ state }: { state: StageState }) {
+  if (state === "completed") return <Check aria-hidden="true" className="size-4" />;
+  if (state === "failed") return <X aria-hidden="true" className="size-4" />;
+  if (state === "active")
+    return <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />;
+  return <Circle aria-hidden="true" className="size-3" />;
+}
+
+export function ExecutionTimeline({ events, runKind, status }: ExecutionTimelineProps) {
+  const progress = progressFor(runKind, events, status);
+  const activeIndex = activeStageIndex(runKind, events, status);
 
   return (
-    <div className="my-4">
-      {collapsible ? (
-        <button
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-          className="wk-focus-ring mb-2 inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-semibold text-fg-2 hover:text-fg"
+    <section aria-label="تقدم التنفيذ" className="space-y-4">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="font-semibold text-text-primary">تقدم التنفيذ</span>
+          <span className="font-mono text-xs text-text-secondary" dir="ltr">
+            {progress}%
+          </span>
+        </div>
+        <div
+          aria-label={`اكتمل ${progress} بالمئة`}
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={progress}
+          className="h-1.5 overflow-hidden rounded-full bg-surface-muted"
+          role="progressbar"
         >
-          {expanded ? (
-            <ChevronUp aria-hidden className="size-4" />
-          ) : (
-            <ChevronDown aria-hidden className="size-4" />
-          )}
-          {expanded ? "إخفاء التفاصيل" : `عرض التفاصيل (${events.length} إجراء)`}
-        </button>
-      ) : null}
-      <ol className="flex flex-col gap-3" aria-label="سجل خطوات التشغيل">
-        {visible.map((event) => {
-          const isLast = event.seq === events[events.length - 1]?.seq;
-          const running = isLast && isActive;
+          <div
+            className="h-full rounded-full bg-brand transition-[width] duration-slow motion-reduce:transition-none"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <ol className="space-y-1" aria-live="polite">
+        {STAGES.map((stage, index) => {
+          const stageState = stateFor(index, activeIndex, status);
           return (
-            <li key={event.seq} className="flex items-start gap-3 text-sm leading-6 text-fg-2">
+            <li
+              aria-current={stageState === "active" ? "step" : undefined}
+              className={`grid grid-cols-[2rem_1fr] gap-2 rounded-xl px-2 py-2.5 ${
+                stageState === "active" ? "bg-brand-soft" : ""
+              }`}
+              key={stage.key}
+            >
               <span
-                className={
-                  running
-                    ? "mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-fg-accent"
-                    : "mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-success-subtle text-fg-success"
-                }
+                className={`mt-0.5 flex size-7 items-center justify-center rounded-full ${
+                  stageState === "completed"
+                    ? "bg-success-soft text-success"
+                    : stageState === "failed"
+                      ? "bg-danger-soft text-danger"
+                      : stageState === "active"
+                        ? "bg-brand text-text-inverse"
+                        : "bg-surface-muted text-text-tertiary"
+                }`}
               >
-                {running ? (
-                  <Loader2 aria-hidden className="size-3.5 animate-spin" />
-                ) : (
-                  <Check aria-hidden className="size-3.5" />
-                )}
+                <StageIcon state={stageState} />
               </span>
-              <span>{runEventLabel(event)}</span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-text-primary">{stage.label}</span>
+                <span className="sr-only">، {STAGE_STATE_LABEL[stageState]}.</span>
+                <span className="block text-xs leading-5 text-text-secondary">
+                  {stage.description}
+                </span>
+              </span>
             </li>
           );
         })}
       </ol>
-    </div>
+
+      {events.length > 0 ? (
+        <details className="rounded-xl bg-surface-muted px-3 py-2 text-xs text-text-secondary">
+          <summary className="cursor-pointer font-semibold text-text-primary">
+            تفاصيل التنفيذ
+          </summary>
+          <ol className="mt-2 space-y-1 border-r border-border pr-3">
+            {events.map((event) => (
+              <li key={event.seq}>
+                <span className="font-mono" dir="ltr">
+                  #{event.seq}
+                </span>{" "}
+                {runEventLabel({ type: event.type })}
+              </li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
+    </section>
   );
 }

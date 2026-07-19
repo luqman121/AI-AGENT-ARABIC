@@ -46,10 +46,16 @@ export const conversationMessages = pgTable(
     conversationId: uuid("conversation_id").notNull(),
     role: text("role").notNull().default("user"),
     content: text("content").notNull(),
+    // Stable client identifier supports safe optimistic retries after a refresh or lost response.
+    clientMessageId: uuid("client_message_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     unique("conversation_messages_id_workspace_unique").on(table.id, table.workspaceId),
+    unique("conversation_messages_workspace_client_unique").on(
+      table.workspaceId,
+      table.clientMessageId,
+    ),
     index("conversation_messages_workspace_created_idx").on(table.workspaceId, table.createdAt),
     // Search in M1 includes saved Arabic request text without language-specific stemming.
     index("conversation_messages_content_trgm_idx").using(

@@ -57,7 +57,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const address = provider.address();
   if (!address || typeof address === "string") throw new Error("E2E provider failed to bind");
 
-  const worker = spawn("pnpm", ["--filter", "@wakil/worker", "start"], {
+  // Spawn Node directly instead of a pnpm wrapper so termination cannot orphan
+  // the actual worker process after Playwright exits or global setup fails.
+  const worker = spawn(process.execPath, ["apps/worker/dist/index.js"], {
     cwd: rootDirectory,
     env: {
       ...process.env,
@@ -69,18 +71,28 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       OPENROUTER_API_KEY: "e2e-local-key",
       OPENROUTER_BASE_URL: `http://127.0.0.1:${address.port}`,
       OPENROUTER_MODEL: "e2e-local-model",
+      WORKER_HEALTH_PORT: "3102",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+  // Playwright does not run cleanup values returned by globalSetup. Ensure the
+  // spawned worker never survives the test runner process.
+  const terminateWorker = () => {
+    if (worker.exitCode === null) worker.kill("SIGTERM");
+  };
+  process.once("exit", terminateWorker);
 
   await new Promise<void>((resolve, reject) => {
+    let workerError = "";
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error("E2E worker did not become ready"));
+      reject(new Error(`E2E worker did not become ready: ${workerError.trim() || "no stderr"}`));
     }, 30_000);
     const onExit = () => {
       cleanup();
-      reject(new Error("E2E worker exited before becoming ready"));
+      reject(
+        new Error(`E2E worker exited before becoming ready: ${workerError.trim() || "no stderr"}`),
+      );
     };
     const onStdout = (chunk: Buffer) => {
       if (chunk.toString().includes('"state":"consuming"')) {
@@ -88,14 +100,20 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
         resolve();
       }
     };
+    const onStderr = (chunk: Buffer) => {
+      // Retain bounded diagnostics; environment values are never written here.
+      workerError = `${workerError}${chunk.toString()}`.slice(-4_000);
+    };
     const cleanup = () => {
       clearTimeout(timeout);
       worker.off("exit", onExit);
       worker.stdout.off("data", onStdout);
+      worker.stderr.off("data", onStderr);
     };
 
     worker.once("exit", onExit);
     worker.stdout.on("data", onStdout);
+    worker.stderr.on("data", onStderr);
   });
 
   return async () => {

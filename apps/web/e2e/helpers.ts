@@ -99,9 +99,7 @@ export async function assertMobileQuality(page: Page): Promise<void> {
   // Every visible interactive target is at least 44x44. Screen-reader-only
   // elements (e.g. the skip link) are keyboard/AT affordances, not touch
   // targets, and are excluded.
-  const targets = page.locator(
-    "a[href]:not(.sr-only), button:not(.sr-only), input, textarea, [role='tab']",
-  );
+  const targets = page.locator(":is(a[href], button, input, textarea, [role='tab']):not(.sr-only)");
   const count = await targets.count();
   for (let index = 0; index < count; index += 1) {
     const target = targets.nth(index);

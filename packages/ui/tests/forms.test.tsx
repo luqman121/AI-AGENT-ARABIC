@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -112,6 +112,49 @@ describe("RequestComposer", () => {
     expect(screen.getByLabelText("أضف متطلبات إضافية")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "إرسال الطلب" }));
     expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("passes selected files to the unified attachment workflow", () => {
+    const onFilesSelected = vi.fn();
+    render(
+      <RequestComposer
+        label="الطلب"
+        placeholder="اكتب طلبك"
+        value="طلب عربي واضح"
+        onFilesSelected={onFilesSelected}
+        onSubmit={vi.fn()}
+        onValueChange={vi.fn()}
+      />,
+    );
+    const file = new File(["notes"], "تفاصيل.txt", { type: "text/plain" });
+    fireEvent.change(screen.getByLabelText("إضافة ملفات"), { target: { files: [file] } });
+    expect(onFilesSelected).toHaveBeenCalledWith([file]);
+  });
+
+  it("renders attachment state and exposes a labelled remove action", () => {
+    const onAttachmentRemove = vi.fn();
+    render(
+      <RequestComposer
+        attachments={[
+          {
+            id: "local-file",
+            mediaType: "application/pdf",
+            name: "عرض.pdf",
+            sizeBytes: 1_024,
+            status: "ready",
+          },
+        ]}
+        label="الطلب"
+        placeholder="اكتب طلبك"
+        value="طلب عربي واضح"
+        onAttachmentRemove={onAttachmentRemove}
+        onSubmit={vi.fn()}
+        onValueChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("عرض.pdf")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "إزالة عرض.pdf" }));
+    expect(onAttachmentRemove).toHaveBeenCalledWith("local-file");
   });
 
   it("disables sending while pending and announces the error", () => {

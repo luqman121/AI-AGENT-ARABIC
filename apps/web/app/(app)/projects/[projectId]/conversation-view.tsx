@@ -13,6 +13,7 @@ import {
   StatusBanner,
   TextField,
   Toast,
+  type ComposerAttachment,
   type ToastData,
 } from "@wakil/ui";
 import type { RunEventPayload } from "@wakil/shared";
@@ -38,13 +39,22 @@ export type ConversationMessage = {
   role: "user" | "assistant";
 };
 
+type PendingAttachment = ComposerAttachment & {
+  file: File;
+  serverId?: string | undefined;
+};
+
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const ALLOWED_ATTACHMENT =
+  /^(image\/(jpeg|png|webp)|audio\/(webm|mpeg|wav|mp4)|application\/pdf|text\/plain|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|vnd\.ms-excel))$/;
+
 type ViewProps = {
   archived: boolean;
   /** True only right after creation, when the page URL still carries `?autostart=1`. */
   autoStart: boolean;
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
-  latestArtifact: ArtifactResultSummary | null;
+  artifacts: ArtifactResultSummary[];
   messages: ConversationMessage[];
   projectId: string;
   title: string;
@@ -52,10 +62,10 @@ type ViewProps = {
 
 export function ConversationView({
   archived,
+  artifacts,
   autoStart,
   initialEvents,
   initialRun,
-  latestArtifact,
   messages,
   projectId,
   title,
@@ -65,6 +75,9 @@ export function ConversationView({
   const [appendKey, setAppendKey] = useState(newIdempotencyKey);
   const [appendError, setAppendError] = useState<string | undefined>(undefined);
   const [appendPending, startAppend] = useTransition();
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [composerHeight, setComposerHeight] = useState(104);
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTitle, setRenameTitle] = useState(title);
@@ -78,25 +91,147 @@ export function ConversationView({
 
   const [toast, setToast] = useState<ToastData | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const attachmentUrlsRef = useRef(new Set<string>());
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
 
+  useEffect(() => {
+    const saved = window.sessionStorage.getItem(`wakil:project-draft:${projectId}`);
+    const timer = window.setTimeout(() => {
+      if (saved) setDraft(saved);
+      setDraftLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!draftLoaded) return;
+    const key = `wakil:project-draft:${projectId}`;
+    if (draft) window.sessionStorage.setItem(key, draft);
+    else window.sessionStorage.removeItem(key);
+  }, [draft, draftLoaded, projectId]);
+
+  useEffect(
+    () => () => {
+      for (const url of attachmentUrlsRef.current) URL.revokeObjectURL(url);
+      attachmentUrlsRef.current.clear();
+    },
+    [],
+  );
+
   function showToast(tone: ToastData["tone"], message: string) {
     setToast({ id: Date.now(), message, tone });
+  }
+
+  function addFiles(files: File[]) {
+    const accepted: PendingAttachment[] = [];
+    const available = Math.max(0, 6 - attachments.length);
+    if (available === 0) {
+      setAppendError("يمكنك إرفاق 6 ملفات كحد أقصى.");
+      return;
+    }
+    let selectionError =
+      files.length > available ? `تم اختيار أول ${available} ملفات فقط.` : undefined;
+    for (const file of files.slice(0, available)) {
+      if (!ALLOWED_ATTACHMENT.test(file.type)) {
+        selectionError = `نوع الملف غير مدعوم: ${file.name}`;
+        continue;
+      }
+      if (file.size < 1 || file.size > MAX_ATTACHMENT_BYTES) {
+        selectionError = `حجم الملف ${file.name} أكبر من الحد المسموح (10 ميجابايت).`;
+        continue;
+      }
+      const duplicate = attachments.some(
+        (attachment) =>
+          attachment.file.name === file.name &&
+          attachment.file.size === file.size &&
+          attachment.file.lastModified === file.lastModified,
+      );
+      if (duplicate) continue;
+      const previewUrl =
+        file.type.startsWith("image/") || file.type.startsWith("audio/")
+          ? URL.createObjectURL(file)
+          : undefined;
+      if (previewUrl) attachmentUrlsRef.current.add(previewUrl);
+      accepted.push({
+        file,
+        id: crypto.randomUUID(),
+        mediaType: file.type,
+        name: file.name,
+        previewUrl,
+        sizeBytes: file.size,
+        status: "ready",
+      });
+    }
+    if (accepted.length > 0) {
+      setAttachments((current) => [...current, ...accepted]);
+    }
+    setAppendError(selectionError);
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((current) => {
+      const attachment = current.find((item) => item.id === id);
+      if (attachment?.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+        attachmentUrlsRef.current.delete(attachment.previewUrl);
+      }
+      return current.filter((item) => item.id !== id);
+    });
+  }
+
+  async function uploadAttachment(attachment: PendingAttachment) {
+    if (attachment.serverId) return attachment.serverId;
+    const form = new FormData();
+    form.set("file", attachment.file);
+    const response = await fetch(`/api/projects/${projectId}/attachments`, {
+      body: form,
+      method: "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      id?: string;
+      message?: string;
+    } | null;
+    if (!response.ok || !payload?.id) {
+      throw new Error(payload?.message ?? "فشل رفع الملف");
+    }
+    return payload.id;
   }
 
   function submitRequirement() {
     if (appendPending) return;
     startAppend(async () => {
       try {
+        setAttachments((current) =>
+          current.map((attachment) => ({ ...attachment, error: undefined, status: "uploading" })),
+        );
+        const uploaded: { localId: string; serverId: string }[] = [];
+        for (const attachment of attachments) {
+          const serverId = await uploadAttachment(attachment);
+          uploaded.push({ localId: attachment.id, serverId });
+          setAttachments((current) =>
+            current.map((item) =>
+              item.id === attachment.id ? { ...item, serverId, status: "ready" } : item,
+            ),
+          );
+        }
         const result = await appendRequirementAction({
+          attachmentIds: uploaded.map((attachment) => attachment.serverId),
+          clientMessageId: appendKey,
           content: draft,
           idempotencyKey: appendKey,
           projectId,
         });
         if (result.ok) {
+          for (const attachment of attachments) {
+            if (attachment.previewUrl) {
+              URL.revokeObjectURL(attachment.previewUrl);
+              attachmentUrlsRef.current.delete(attachment.previewUrl);
+            }
+          }
+          setAttachments([]);
           setDraft("");
           setAppendError(undefined);
           setAppendKey(newIdempotencyKey());
@@ -104,8 +239,16 @@ export function ConversationView({
           return;
         }
         setAppendError(result.fieldErrors?.["content"] ?? result.message);
-      } catch {
-        setAppendError("لم يُحفظ طلبك. تحقق من الاتصال ثم أعد المحاولة.");
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "فشل رفع الملف";
+        setAttachments((current) =>
+          current.map((attachment) =>
+            attachment.status === "uploading"
+              ? { ...attachment, error: message, status: "error" }
+              : attachment,
+          ),
+        );
+        setAppendError(`${message}. يمكنك إعادة المحاولة دون فقدان طلبك.`);
       }
     });
   }
@@ -204,10 +347,15 @@ export function ConversationView({
 
       <main
         id="main"
+        style={
+          archived
+            ? undefined
+            : { paddingBottom: `calc(${composerHeight + 72}px + env(safe-area-inset-bottom))` }
+        }
         className={
           archived
             ? "mx-auto flex w-full max-w-160 flex-1 flex-col px-4 pb-[calc(72px+env(safe-area-inset-bottom))] pt-4"
-            : "mx-auto flex w-full max-w-160 flex-1 flex-col px-4 pb-[calc(160px+env(safe-area-inset-bottom))] pt-4"
+            : "mx-auto flex w-full max-w-160 flex-1 flex-col px-4 pt-4"
         }
       >
         {archived ? (
@@ -235,7 +383,7 @@ export function ConversationView({
             autoStart={autoStart}
             initialEvents={initialEvents}
             initialRun={initialRun}
-            latestArtifact={latestArtifact}
+            artifacts={artifacts}
             projectId={projectId}
             projectTitle={title}
           />
@@ -245,6 +393,7 @@ export function ConversationView({
 
       {archived ? null : (
         <RequestComposer
+          attachments={attachments}
           label="أضف متطلبات إضافية"
           placeholder="أضف تفاصيل أو متطلبات جديدة…"
           value={draft}
@@ -253,6 +402,11 @@ export function ConversationView({
             if (appendError) setAppendError(undefined);
           }}
           onSubmit={submitRequirement}
+          onFilesSelected={addFiles}
+          onVoiceRecorded={(file) => addFiles([file])}
+          onAttachmentRemove={removeAttachment}
+          onAttachmentError={setAppendError}
+          onHeightChange={setComposerHeight}
           pending={appendPending}
           error={appendError}
         />

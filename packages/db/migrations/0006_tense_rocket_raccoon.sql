@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "runs_parent_run_unique" ON "runs" USING btree ("parent_run_id") WHERE "runs"."parent_run_id" is not null;

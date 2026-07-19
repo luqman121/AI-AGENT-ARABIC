@@ -1,4 +1,9 @@
-import { conversationMessages, conversations, projects } from "@wakil/db/schema";
+import {
+  conversationMessages,
+  conversations,
+  messageAttachments,
+  projects,
+} from "@wakil/db/schema";
 import {
   appendRequirementInputSchema,
   failure,
@@ -6,7 +11,7 @@ import {
   type ActionFailure,
   type ActionResult,
 } from "@wakil/shared";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { writeAuditLog } from "../audit/service";
@@ -39,6 +44,7 @@ export async function appendRequirement(
   const parsed = appendRequirementInputSchema.safeParse(rawInput);
   if (!parsed.success) return failure("VALIDATION_FAILED", zodFieldErrors(parsed.error));
   const input = parsed.data;
+  const attachmentIds = input.attachmentIds ?? [];
 
   const limited = await enforceRateLimit(deps.redis, ctx.userId, "conversation.append");
   if (limited) return limited;
@@ -47,6 +53,8 @@ export async function appendRequirement(
     key: input.idempotencyKey,
     operation: "conversation.append",
     requestHash: hashRequest("conversation.append", {
+      attachmentIds: JSON.stringify(attachmentIds),
+      clientMessageId: input.clientMessageId ?? "",
       content: input.content,
       projectId: input.projectId,
     }),
@@ -93,6 +101,7 @@ export async function appendRequirement(
         await tx
           .insert(conversationMessages)
           .values({
+            clientMessageId: input.clientMessageId,
             content: input.content,
             conversationId: conversation.id,
             role: "user",
@@ -101,6 +110,29 @@ export async function appendRequirement(
           .returning({ id: conversationMessages.id })
       )[0];
       if (!message) throw new ServiceFailure(failure("INTERNAL_ERROR"));
+
+      if (attachmentIds.length > 0) {
+        const linked = await tx
+          .update(messageAttachments)
+          .set({ messageId: message.id })
+          .where(
+            and(
+              eq(messageAttachments.workspaceId, ctx.workspaceId),
+              eq(messageAttachments.projectId, project.id),
+              eq(messageAttachments.conversationId, conversation.id),
+              eq(messageAttachments.status, "ready"),
+              isNull(messageAttachments.messageId),
+              inArray(messageAttachments.id, attachmentIds),
+            ),
+          )
+          .returning({ id: messageAttachments.id });
+        const linkedIds = new Set(linked.map((item) => item.id));
+        if (attachmentIds.some((id) => !linkedIds.has(id))) {
+          throw new ServiceFailure(
+            failure("VALIDATION_FAILED", { attachmentIds: "تعذّر ربط أحد المرفقات" }),
+          );
+        }
+      }
 
       const now = new Date();
       await tx

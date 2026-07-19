@@ -31,10 +31,9 @@ test("projects empty, create, and conversation states @visual", async ({ page },
 
   await captureState(page, testInfo, "create-default");
 
-  // Server-side validation error when nothing was typed yet.
-  await page.getByRole("button", { name: "إرسال الطلب" }).click();
-  await expect(page.getByText("اكتب طلبك أولًا.")).toBeVisible();
-  await captureState(page, testInfo, "create-validation-error");
+  // Empty requests are prevented before submission.
+  await expect(page.getByRole("button", { name: "إرسال الطلب" })).toBeDisabled();
+  await captureState(page, testInfo, "create-empty-disabled");
 
   await page.goto("/projects");
   await expect(page.getByText("ما عندك مشاريع بعد")).toBeVisible();

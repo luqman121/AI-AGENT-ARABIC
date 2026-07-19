@@ -188,6 +188,42 @@ export class S3ArtifactStore {
     await this.#put(keys.zipKey, bundle.zip, 'attachment; filename="wakil-site.zip"');
   }
 
+  /** Uploads a private non-artifact input such as a user file or voice note. */
+  async uploadPrivateObject(input: {
+    bytes: Uint8Array;
+    checksumSha256: string;
+    key: string;
+    mediaType: string;
+    fileName: string;
+  }): Promise<void> {
+    await this.#put(
+      input.key,
+      {
+        bytes: input.bytes,
+        checksumSha256: input.checksumSha256,
+        mediaType: input.mediaType,
+        sizeBytes: input.bytes.byteLength,
+      },
+      `attachment; filename="${input.fileName.replace(/["\\\r\n]/g, "_")}"`,
+    );
+  }
+
+  /** Removes a private input when its database record cannot be committed. */
+  async deletePrivateObject(key: string): Promise<void> {
+    await this.#client.send(new DeleteObjectCommand({ Bucket: this.#bucket, Key: key }));
+  }
+
+  async signPrivateObject(
+    key: string,
+    response: { fileName: string; mediaType: string },
+    expiresInSeconds = 300,
+  ): Promise<string> {
+    return this.#signObject(key, expiresInSeconds, {
+      disposition: `attachment; filename="${response.fileName.replace(/["\\\r\n]/g, "_")}"`,
+      mediaType: response.mediaType,
+    });
+  }
+
   /** Read-only credential, endpoint, and bucket reachability check. */
   async checkHealth(): Promise<void> {
     await this.#client.send(new HeadBucketCommand({ Bucket: this.#bucket }));

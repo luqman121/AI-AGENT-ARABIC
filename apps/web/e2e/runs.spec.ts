@@ -74,17 +74,22 @@ function runPanel(page: Page) {
 async function expectSuccessfulRun(page: Page): Promise<void> {
   const panel = runPanel(page);
   await expect(panel.getByText("اكتمل", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(
-    panel.getByRole("list", { name: "سجل خطوات التشغيل" }).getByRole("listitem"),
-  ).toHaveText([
-    "في قائمة الانتظار",
-    "بدأ التشغيل",
-    "بدأ إعداد الخطة",
-    "اكتملت الخطة",
-    "اكتمل التشغيل",
+  // Rehydrate from PostgreSQL before asserting the immutable event order. The
+  // terminal SSE can arrive before an earlier event has painted on slower UIs.
+  await page.reload();
+  await expect(panel.getByText("اكتمل", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+  const eventDetails = panel.locator("details");
+  await eventDetails.getByText("تفاصيل التنفيذ", { exact: true }).click();
+  await expect(eventDetails.getByRole("listitem")).toHaveText([
+    "#1 في قائمة الانتظار",
+    "#2 بدأ التشغيل",
+    "#3 بدأ إعداد الخطة",
+    "#6 اكتملت الخطة",
+    "#7 اكتمل التشغيل",
   ]);
   await expect(page.getByRole("article", { name: "رد وكيل" })).toContainText("خطة موجزة للمشروع");
-  await expect(panel.getByRole("button", { name: "بدء تنفيذ الموقع" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "بدء التنفيذ" })).toBeVisible();
 }
 
 async function seedPrivateArtifact(projectId: string): Promise<void> {
@@ -226,7 +231,7 @@ test("private artifact preview and download @visual", async ({ page }, testInfo:
   await seedPrivateArtifact(projectId);
 
   await page.goto(`/projects/${projectId}/preview`);
-  await expect(page.getByText("اجتاز الموقع التحقق المعزول.", { exact: false })).toBeVisible();
+  await expect(page.getByText("اجتازت النتيجة التحقق المعزول.", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: "تنزيل ملف ZIP" })).toBeVisible();
   await expect(page.locator("iframe")).toHaveAttribute("sandbox", "allow-scripts");
   await expect(

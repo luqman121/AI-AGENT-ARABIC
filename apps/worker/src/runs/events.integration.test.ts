@@ -6,7 +6,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 
 import { appendRunEvent } from "./events.js";
 
-let container: StartedPostgreSqlContainer;
+let container: StartedPostgreSqlContainer | undefined;
 let handle: ReturnType<typeof createDatabaseClient>;
 
 const ids = {
@@ -18,9 +18,15 @@ const ids = {
 };
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("postgres:17.10-alpine3.23").start();
-  await migrateDatabase(container.getConnectionUri());
-  handle = createDatabaseClient(container.getConnectionUri());
+  const externalDatabaseUrl = process.env.TEST_DATABASE_URL;
+  const connectionUri = externalDatabaseUrl
+    ? externalDatabaseUrl
+    : await new PostgreSqlContainer("postgres:17.10-alpine3.23").start().then((started) => {
+        container = started;
+        return started.getConnectionUri();
+      });
+  await migrateDatabase(connectionUri);
+  handle = createDatabaseClient(connectionUri);
   const db = handle.db;
   await db.insert(users).values({ id: ids.user, email: "o@example.test" });
   await db.insert(workspaces).values({ id: ids.workspace, name: "W", ownerUserId: ids.user });

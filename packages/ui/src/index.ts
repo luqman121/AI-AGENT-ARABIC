@@ -34,7 +34,11 @@ export {
   type ProjectListItemContentProps,
   type ProjectListItemProps,
 } from "./components/project-list-item";
-export { RequestComposer, type RequestComposerProps } from "./components/request-composer";
+export {
+  RequestComposer,
+  type ComposerAttachment,
+  type RequestComposerProps,
+} from "./components/request-composer";
 export { SearchField, type SearchFieldProps } from "./components/search-field";
 export { Skeleton } from "./components/skeleton";
 export { StatusBanner, type StatusBannerProps } from "./components/status-banner";

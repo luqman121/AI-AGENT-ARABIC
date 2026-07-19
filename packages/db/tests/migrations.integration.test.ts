@@ -8,13 +8,28 @@ import { migrateDatabase } from "../src/migrate.js";
 const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
 
 describe("database migrations", () => {
-  let container: StartedPostgreSqlContainer;
+  let container: StartedPostgreSqlContainer | undefined;
+  let connectionString: string;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer("postgres:17.10-alpine3.23").start();
-    sql = postgres(container.getConnectionUri(), { max: 1 });
-    await migrateDatabase(container.getConnectionUri(), migrationsFolder);
+    const externalDatabaseUrl = process.env.TEST_DATABASE_URL;
+    if (externalDatabaseUrl) {
+      connectionString = externalDatabaseUrl;
+      const reset = postgres(connectionString, { max: 1 });
+      try {
+        await reset.unsafe(
+          "drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public",
+        );
+      } finally {
+        await reset.end({ timeout: 5 });
+      }
+    } else {
+      container = await new PostgreSqlContainer("postgres:17.10-alpine3.23").start();
+      connectionString = container.getConnectionUri();
+    }
+    sql = postgres(connectionString, { max: 1 });
+    await migrateDatabase(connectionString, migrationsFolder);
   });
 
   afterAll(async () => {
@@ -73,7 +88,7 @@ describe("database migrations", () => {
       values (${projectId}, ${workspaceId}, ${userId}, 'موقع المقهى')
     `;
 
-    await migrateDatabase(container.getConnectionUri(), migrationsFolder);
+    await migrateDatabase(connectionString, migrationsFolder);
 
     const rows = await sql<{ count: number }[]>`
       select count(*)::int as count from projects where id = ${projectId}

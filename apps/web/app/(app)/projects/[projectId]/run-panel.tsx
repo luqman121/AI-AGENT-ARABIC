@@ -49,17 +49,17 @@ export type RunPanelProps = {
   autoStart: boolean;
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
-  latestArtifact: ArtifactResultSummary | null;
+  artifacts: ArtifactResultSummary[];
   projectId: string;
   projectTitle: string;
 };
 
 export function RunPanel({
   archived,
+  artifacts,
   autoStart,
   initialEvents,
   initialRun,
-  latestArtifact,
   projectId,
   projectTitle,
 }: RunPanelProps) {
@@ -72,6 +72,7 @@ export function RunPanel({
   const [cancelKey, setCancelKey] = useState(newIdempotencyKey);
   const [pending, startTransition] = useTransition();
   const seenRef = useRef(new Set(initialEvents.map((event) => event.seq)));
+  const hydratedRunIdRef = useRef(initialRun?.id);
   const autoStartedRef = useRef(false);
 
   const runId = run?.id;
@@ -106,6 +107,16 @@ export function RunPanel({
     },
     [router],
   );
+
+  useEffect(() => {
+    const incomingRunId = initialRun?.id;
+    if (hydratedRunIdRef.current === incomingRunId) return;
+    hydratedRunIdRef.current = incomingRunId;
+    seenRef.current = new Set(initialEvents.map((event) => event.seq));
+    setEvents(initialEvents);
+    setRun(initialRun);
+    setReconnecting(false);
+  }, [initialEvents, initialRun]);
 
   useEffect(() => {
     if (!runId || !isActive) return;
@@ -255,8 +266,8 @@ export function RunPanel({
         </div>
       ) : null}
 
-      {visibleEvents.length > 0 ? (
-        <ExecutionTimeline events={visibleEvents} isActive={isActive} />
+      {run && visibleEvents.length > 0 ? (
+        <ExecutionTimeline events={visibleEvents} runKind={run.kind} status={run.status} />
       ) : isActive ? (
         <div
           aria-live="polite"
@@ -301,6 +312,19 @@ export function RunPanel({
         </StatusBanner>
       ) : null}
 
+      {artifacts.length > 0 ? (
+        <div className="mb-4 flex flex-col gap-3" aria-label="نتائج المشروع">
+          {artifacts.map((artifact, index) => (
+            <ArtifactResultCard
+              artifact={artifact}
+              key={artifact.id}
+              projectId={projectId}
+              title={index === 0 ? projectTitle : `${projectTitle} — إصدار سابق`}
+            />
+          ))}
+        </div>
+      ) : null}
+
       {archived ? null : isActive ? (
         <Button
           className="w-full"
@@ -311,27 +335,13 @@ export function RunPanel({
         >
           {cancelRequested ? "تم طلب الإلغاء" : "إلغاء التشغيل"}
         </Button>
-      ) : run?.kind === "execution" && run.status === "succeeded" && latestArtifact ? (
-        <div className="flex flex-col gap-3">
-          <ArtifactResultCard
-            artifact={latestArtifact}
-            projectId={projectId}
-            title={projectTitle}
-          />
-          <Button variant="secondary" onClick={start} loading={pending}>
-            إعادة التنفيذ
-          </Button>
-        </div>
       ) : run?.kind === "execution" && run.status === "succeeded" ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Button onClick={() => router.push(`/projects/${projectId}/preview`)}>عرض النتيجة</Button>
-          <Button variant="secondary" onClick={start} loading={pending}>
-            إعادة التنفيذ
-          </Button>
-        </div>
+        <Button className="w-full" variant="secondary" onClick={start} loading={pending}>
+          إعادة التنفيذ
+        </Button>
       ) : (
         <Button className="w-full" onClick={start} loading={pending}>
-          {nextKind === "execution" ? "بدء تنفيذ الموقع" : "إعداد الخطة"}
+          {nextKind === "execution" ? "بدء التنفيذ" : "إعداد الخطة"}
         </Button>
       )}
     </section>

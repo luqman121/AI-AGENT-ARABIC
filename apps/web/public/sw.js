@@ -8,7 +8,7 @@
  *               query string. Offline mutations are never queued or replayed.
  */
 const CACHE_VERSION = "wakil-shell-v1";
-const OFFLINE_URL = "/offline";
+const OFFLINE_URL = "/offline.html";
 
 const SHELL_ASSETS = [
   OFFLINE_URL,
@@ -58,7 +58,7 @@ self.addEventListener("fetch", (event) => {
   // Navigations are network-only; the offline fallback is the only substitute.
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() =>
+      fetch(new Request(request, { cache: "no-store" })).catch(() =>
         caches
           .open(CACHE_VERSION)
           .then((cache) => cache.match(OFFLINE_URL))

@@ -15,20 +15,34 @@ export type IntegrationHarness = {
   stop: () => Promise<void>;
 };
 
-/** Starts PostgreSQL 17 + Redis 7 containers and migrates the schema. */
+/**
+ * Uses TEST_DATABASE_URL/TEST_REDIS_URL when provided; otherwise starts isolated
+ * PostgreSQL 17 and Redis 7 containers. External services make the suite usable
+ * on CI runners and development machines where Docker is unavailable.
+ */
 export async function startHarness(): Promise<IntegrationHarness> {
-  const [postgresContainer, redisContainer]: [StartedPostgreSqlContainer, StartedTestContainer] =
-    await Promise.all([
-      new PostgreSqlContainer("postgres:17.10-alpine3.23").start(),
-      new GenericContainer("redis:7.4-alpine").withExposedPorts(6379).start(),
-    ]);
+  let postgresContainer: StartedPostgreSqlContainer | undefined;
+  let redisContainer: StartedTestContainer | undefined;
 
-  await migrateDatabase(postgresContainer.getConnectionUri());
-  const handle = createDatabaseClient(postgresContainer.getConnectionUri());
-  const redis = new Redis(redisContainer.getHost(), {
-    maxRetriesPerRequest: 1,
-    port: redisContainer.getMappedPort(6379),
-  });
+  const databaseUrl = process.env.TEST_DATABASE_URL;
+  const redisUrl = process.env.TEST_REDIS_URL;
+
+  if (!databaseUrl) {
+    postgresContainer = await new PostgreSqlContainer("postgres:17.10-alpine3.23").start();
+  }
+  if (!redisUrl) {
+    redisContainer = await new GenericContainer("redis:7.4-alpine").withExposedPorts(6379).start();
+  }
+
+  const resolvedDatabaseUrl = databaseUrl ?? postgresContainer!.getConnectionUri();
+  await migrateDatabase(resolvedDatabaseUrl);
+  const handle = createDatabaseClient(resolvedDatabaseUrl);
+  const redis = redisUrl
+    ? new Redis(redisUrl, { maxRetriesPerRequest: 1 })
+    : new Redis(redisContainer!.getHost(), {
+        maxRetriesPerRequest: 1,
+        port: redisContainer!.getMappedPort(6379),
+      });
 
   return {
     createTenant: async (email: string) => {
@@ -42,7 +56,7 @@ export async function startHarness(): Promise<IntegrationHarness> {
     stop: async () => {
       redis.disconnect();
       await handle.close();
-      await Promise.all([postgresContainer.stop(), redisContainer.stop()]);
+      await Promise.all([postgresContainer?.stop(), redisContainer?.stop()]);
     },
   };
 }

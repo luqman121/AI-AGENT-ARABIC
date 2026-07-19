@@ -15,6 +15,8 @@ export const projects = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     title: text("title").notNull(),
+    // Stored with the project so retries and later runs cannot silently change the requested result.
+    outputKind: text("output_kind").notNull().default("static_site"),
     status: text("status").notNull().default("active"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -32,6 +34,10 @@ export const projects = pgTable(
     index("projects_title_trgm_idx").using("gin", sql`${table.title} gin_trgm_ops`),
     check("projects_title_length_check", sql`char_length(btrim(${table.title})) between 1 and 120`),
     check("projects_status_check", sql`${table.status} in ('active', 'archived')`),
+    check(
+      "projects_output_kind_check",
+      sql`${table.outputKind} in ('static_site', 'web_app', 'pdf', 'spreadsheet', 'image', 'audio', 'document', 'presentation', 'other')`,
+    ),
     check(
       "projects_archive_state_check",
       sql`(${table.status} = 'active' and ${table.archivedAt} is null) or (${table.status} = 'archived' and ${table.archivedAt} is not null)`,

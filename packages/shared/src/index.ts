@@ -18,11 +18,13 @@ export {
 export {
   archiveProjectInputSchema,
   createProjectInputSchema,
+  OUTPUT_KINDS,
   PROJECT_FILTERS,
   renameProjectInputSchema,
   searchProjectsInputSchema,
   type ArchiveProjectInput,
   type CreateProjectInput,
+  type OutputKind,
   type ProjectFilter,
   type RenameProjectInput,
   type SearchProjectsInput,

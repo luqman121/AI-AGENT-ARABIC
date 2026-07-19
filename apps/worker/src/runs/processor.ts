@@ -190,7 +190,7 @@ async function processPlanningRun(
     return finalizeFailure(deps, job, result.attempts, failureErrorCode(result.code));
   }
 
-  const events = await deps.db.transaction(async (tx) => {
+  const completedEvents = await deps.db.transaction(async (tx) => {
     const message = (
       await tx
         .insert(conversationMessages)
@@ -224,7 +224,9 @@ async function processPlanningRun(
     return terminalEvents(tx, job, "assistant.completed");
   });
 
-  for (const event of events) await publishRunEvent(deps.redis, job.runId, event);
+  for (const event of completedEvents) {
+    await publishRunEvent(deps.redis, job.runId, event);
+  }
   return "succeeded";
 }
 

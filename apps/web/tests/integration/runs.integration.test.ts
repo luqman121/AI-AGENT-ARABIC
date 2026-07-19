@@ -10,7 +10,11 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { cancelRun, startRun } from "../../src/server/features/runs/mutations";
-import { getLatestArtifact } from "../../src/server/features/artifacts/queries";
+import {
+  getArtifactById,
+  getLatestArtifact,
+  listProjectArtifacts,
+} from "../../src/server/features/artifacts/queries";
 import {
   getLatestRun,
   getRunEventsAfter,
@@ -281,25 +285,36 @@ describe.sequential("run services", () => {
     expect(execution).toEqual({ kind: "execution", parentRunId: plan.id });
     expect(enqueueRun).toHaveBeenCalledOnce();
 
-    await harness.db.insert(artifacts).values({
-      downloadChecksumSha256: "b".repeat(64),
-      downloadMediaType: "application/zip",
-      downloadObjectKey: `private/${result.data.runId}/artifact.zip`,
-      downloadSizeBytes: 200,
-      kind: "static_site",
-      previewChecksumSha256: "a".repeat(64),
-      previewMediaType: "text/html; charset=utf-8",
-      previewObjectKey: `private/${result.data.runId}/preview.html`,
-      previewSizeBytes: 100,
-      projectId,
-      runId: result.data.runId,
-      workspaceId: owner.workspaceId,
-    });
+    const artifact = (
+      await harness.db
+        .insert(artifacts)
+        .values({
+          downloadChecksumSha256: "b".repeat(64),
+          downloadMediaType: "application/zip",
+          downloadObjectKey: `private/${result.data.runId}/artifact.zip`,
+          downloadSizeBytes: 200,
+          kind: "static_site",
+          previewChecksumSha256: "a".repeat(64),
+          previewMediaType: "text/html; charset=utf-8",
+          previewObjectKey: `private/${result.data.runId}/preview.html`,
+          previewSizeBytes: 100,
+          projectId,
+          runId: result.data.runId,
+          workspaceId: owner.workspaceId,
+        })
+        .returning({ id: artifacts.id })
+    )[0]!;
     await expect(getLatestArtifact(harness.db, owner, projectId)).resolves.toMatchObject({
       downloadSizeBytes: 200,
       previewObjectKey: `private/${result.data.runId}/preview.html`,
     });
     await expect(getLatestArtifact(harness.db, outsider, projectId)).resolves.toBeNull();
+    await expect(getArtifactById(harness.db, owner, projectId, artifact.id)).resolves.toMatchObject(
+      { id: artifact.id },
+    );
+    await expect(getArtifactById(harness.db, outsider, projectId, artifact.id)).resolves.toBeNull();
+    await expect(listProjectArtifacts(harness.db, owner, projectId)).resolves.toHaveLength(1);
+    await expect(listProjectArtifacts(harness.db, outsider, projectId)).resolves.toEqual([]);
   });
 
   it("rejects execution when requirements were added after the plan", async () => {
