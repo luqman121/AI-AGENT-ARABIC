@@ -1,14 +1,14 @@
 "use client";
 
 import { BottomNav, BottomNavItem, BottomNavItemContent } from "@wakil/ui";
-import { BarChart3, FolderOpen, Plus, UserRound } from "lucide-react";
+import { FolderOpen, Plus, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// "إنشاء" stays the center item regardless of DOM order under RTL.
 const ITEMS = [
-  { href: "/new", icon: Plus, label: "إنشاء" },
   { href: "/projects", icon: FolderOpen, label: "المشاريع" },
-  { href: "/usage", icon: BarChart3, label: "الاستخدام" },
+  { href: "/new", icon: Plus, label: "إنشاء" },
   { href: "/account", icon: UserRound, label: "الحساب" },
 ] as const;
 

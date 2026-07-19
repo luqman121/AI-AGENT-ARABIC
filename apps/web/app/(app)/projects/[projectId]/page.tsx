@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { requireAuthorizedContext } from "../../../../src/server/auth/session";
 import { getDatabase } from "../../../../src/server/db";
+import { getLatestArtifact } from "../../../../src/server/features/artifacts/queries";
 import { getProjectConversation } from "../../../../src/server/features/conversations/queries";
 import { getProjectById } from "../../../../src/server/features/projects/queries";
 import { getLatestRun, getRunEventsAfter } from "../../../../src/server/features/runs/queries";
@@ -38,6 +39,7 @@ export default async function ProjectConversationPage({
   const initialEvents = latestRun
     ? await getRunEventsAfter(getDatabase(), ctx, projectId, latestRun.id, 0)
     : [];
+  const latestArtifact = await getLatestArtifact(getDatabase(), ctx, projectId);
 
   return (
     <ConversationView
@@ -45,6 +47,14 @@ export default async function ProjectConversationPage({
       autoStart={autostart === "1" && !latestRun}
       initialEvents={initialEvents}
       initialRun={latestRun}
+      latestArtifact={
+        latestArtifact
+          ? {
+              createdAtIso: latestArtifact.createdAt.toISOString(),
+              downloadSizeBytes: latestArtifact.downloadSizeBytes,
+            }
+          : null
+      }
       messages={conversation.messages.map((message) => ({
         content: message.content,
         createdAtIso: message.createdAt.toISOString(),

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  runEventLabel,
   runEventPayloadSchema,
   type RunEventPayload,
   type RunKind,
@@ -12,7 +11,6 @@ import {
   Activity,
   Ban,
   BrainCircuit,
-  Check,
   CircleCheck,
   CircleX,
   Clock3,
@@ -23,6 +21,8 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { newIdempotencyKey } from "../../../../src/lib/idempotency-key";
 import { cancelRunAction, startRunAction } from "../../../../src/server/actions/runs";
+import { ArtifactResultCard, type ArtifactResultSummary } from "./artifact-result-card";
+import { ExecutionTimeline } from "./execution-timeline";
 
 export type RunPanelSummary = {
   cancelRequestedAtIso: string | null;
@@ -49,7 +49,9 @@ export type RunPanelProps = {
   autoStart: boolean;
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
+  latestArtifact: ArtifactResultSummary | null;
   projectId: string;
+  projectTitle: string;
 };
 
 export function RunPanel({
@@ -57,7 +59,9 @@ export function RunPanel({
   autoStart,
   initialEvents,
   initialRun,
+  latestArtifact,
   projectId,
+  projectTitle,
 }: RunPanelProps) {
   const router = useRouter();
   const [run, setRun] = useState<RunPanelSummary | null>(initialRun);
@@ -252,16 +256,7 @@ export function RunPanel({
       ) : null}
 
       {visibleEvents.length > 0 ? (
-        <ol className="my-4 flex flex-col gap-3" aria-label="سجل خطوات التشغيل">
-          {visibleEvents.map((event) => (
-            <li key={event.seq} className="flex items-start gap-3 text-sm leading-6 text-fg-2">
-              <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-success-subtle text-fg-success">
-                <Check aria-hidden className="size-3.5" />
-              </span>
-              <span>{runEventLabel(event)}</span>
-            </li>
-          ))}
-        </ol>
+        <ExecutionTimeline events={visibleEvents} isActive={isActive} />
       ) : isActive ? (
         <div
           aria-live="polite"
@@ -316,6 +311,17 @@ export function RunPanel({
         >
           {cancelRequested ? "تم طلب الإلغاء" : "إلغاء التشغيل"}
         </Button>
+      ) : run?.kind === "execution" && run.status === "succeeded" && latestArtifact ? (
+        <div className="flex flex-col gap-3">
+          <ArtifactResultCard
+            artifact={latestArtifact}
+            projectId={projectId}
+            title={projectTitle}
+          />
+          <Button variant="secondary" onClick={start} loading={pending}>
+            إعادة التنفيذ
+          </Button>
+        </div>
       ) : run?.kind === "execution" && run.status === "succeeded" ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <Button onClick={() => router.push(`/projects/${projectId}/preview`)}>عرض النتيجة</Button>

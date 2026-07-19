@@ -1,5 +1,7 @@
 import { AppHeader, Ltr, PageShell } from "@wakil/ui";
+import { BarChart3, ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { getWebEnv, isGoogleAuthEnabled } from "../../../src/env";
 import { getSessionUser, requireAuthorizedContext } from "../../../src/server/auth/session";
@@ -43,6 +45,15 @@ export default async function AccountPage() {
             {googleEnabled ? <li>حساب Google</li> : null}
           </ul>
         </section>
+
+        <Link
+          href="/usage"
+          className="wk-elevate-1 wk-focus-ring mt-4 flex min-h-11 items-center gap-3 rounded-md p-4 text-fg transition-colors duration-150 hover:bg-overlay"
+        >
+          <BarChart3 aria-hidden className="size-5 text-fg-2" />
+          <span className="flex-1 text-base font-semibold">الاستخدام</span>
+          <ChevronLeft aria-hidden className="size-5 text-fg-3" />
+        </Link>
 
         <div className="mt-6">
           <SignOutButton />

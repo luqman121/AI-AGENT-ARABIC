@@ -4,24 +4,53 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Mobile create and agent-workspace redesign
+
+- Redesigned the `/new` create screen to match a mobile agent-app reference layout: header with a
+  profile link, a centered "مرحبًا {الاسم}، ماذا تريد أن تنشئ اليوم؟" greeting using the
+  authenticated user's first name, a horizontally scrollable artifact-type pill row, and the request
+  composer in normal page flow (no longer fixed above the bottom navigation on this screen).
+- Added `ArtifactTypeScroller` (`@wakil/ui`) with `موقع ويب` and `أخرى` selectable — the only two
+  intents that map to a real Wakil pipeline today — and the remaining pills (`تصميم`, `عرض تقديمي`,
+  `PDF`, `Excel`, `صورة`, `بحث`) shown disabled with a "قريبًا" label for layout parity without
+  claiming a generation capability that does not exist. No new backend artifact types were added;
+  per `GOAL.md`, non-website generation stays out of scope until a separately approved milestone.
+- Redesigned `RequestComposer` with an attachment and a voice-input affordance shown for visual
+  parity but kept disabled (Wakil does not accept uploads or voice input yet), and a `sticky` prop
+  so the same component serves both the fixed conversation composer and the in-flow create-screen
+  composer.
+- Reordered the project conversation so saved messages render before the run panel (the submitted
+  request appears at the top, with live agent status directly beneath it), redesigned the run
+  panel's execution log into an `ExecutionTimeline` with per-row status icons and an expand/collapse
+  control for long histories (defaults open so existing saved-event assertions keep seeing every
+  step), and added an inline `ArtifactResultCard` shown in the conversation once a website execution
+  run succeeds, instead of only linking out to the separate preview page.
+- Reduced the bottom navigation to three items (`المشاريع`, `إنشاء`, `الحساب`) with `إنشاء`
+  centered, and moved the usage-history link into the account page.
+- Verified `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`, and `pnpm build` for the
+  whole workspace, plus a full local `pnpm dev` + Playwright pass (mobile-390 and mobile-430) of the
+  a11y, journey, offline-mutation, PWA, and real-run-execution specs. Fixed a pre-existing flaky
+  `journey.spec.ts` locator (three elements already matched the same request substring — derived
+  title, message bubble, and the Next.js route announcer — independent of this change).
+
 ### Single-composer create flow and auto-started planning run
 
-- Replaced the two-field `/new` form (separate title and request) with the single request
-  composer, matching the approved design system's documented "request composer is the visual
-  hero of `/new`" rule. The server now derives a project title from the request text
-  (word-boundary truncated) when the client sends none.
-- The first planning run now starts automatically right after project creation instead of
-  requiring a manual "إعداد الخطة" tap, so the conversation shows real, persisted execution
-  progress immediately after the user submits their idea. Starting the website execution run
-  remains an explicit, separate user action.
+- Replaced the two-field `/new` form (separate title and request) with the single request composer,
+  matching the approved design system's documented "request composer is the visual hero of `/new`"
+  rule. The server now derives a project title from the request text (word-boundary truncated) when
+  the client sends none.
+- The first planning run now starts automatically right after project creation instead of requiring
+  a manual "إعداد الخطة" tap, so the conversation shows real, persisted execution progress
+  immediately after the user submits their idea. Starting the website execution run remains an
+  explicit, separate user action.
 - Added a truthful "thinking" state to the run panel — an animated icon plus Arabic status text —
-  shown only while a real run is queued or running with no persisted step yet; it is replaced by
-  the real step checklist as soon as persisted events arrive. Respects `prefers-reduced-motion`
-  via the existing global rule.
-- Updated Playwright coverage (journey, run states, accessibility, offline-mutation specs) and
-  added unit/integration coverage for the derived-title behavior. Verified `pnpm lint`,
-  `pnpm typecheck`, `pnpm test`, `pnpm format:check`, and `pnpm build`; Playwright/Testcontainers
-  verification requires a Docker daemon that was not available in this session and was not run.
+  shown only while a real run is queued or running with no persisted step yet; it is replaced by the
+  real step checklist as soon as persisted events arrive. Respects `prefers-reduced-motion` via the
+  existing global rule.
+- Updated Playwright coverage (journey, run states, accessibility, offline-mutation specs) and added
+  unit/integration coverage for the derived-title behavior. Verified `pnpm lint`, `pnpm typecheck`,
+  `pnpm test`, `pnpm format:check`, and `pnpm build`; Playwright/Testcontainers verification
+  requires a Docker daemon that was not available in this session and was not run.
 
 ### M3 — Production Release Readiness
 

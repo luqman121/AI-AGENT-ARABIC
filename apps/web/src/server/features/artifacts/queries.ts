@@ -5,9 +5,11 @@ import { getProjectById } from "../projects/queries";
 import type { Database, ServiceContext } from "../types";
 
 export type ArtifactSummary = {
+  createdAt: Date;
   downloadObjectKey: string;
   downloadSizeBytes: number;
   id: string;
+  kind: string;
   previewObjectKey: string;
 };
 
@@ -23,9 +25,11 @@ export async function getLatestArtifact(
     (
       await db
         .select({
+          createdAt: artifacts.createdAt,
           downloadObjectKey: artifacts.downloadObjectKey,
           downloadSizeBytes: artifacts.downloadSizeBytes,
           id: artifacts.id,
+          kind: artifacts.kind,
           previewObjectKey: artifacts.previewObjectKey,
         })
         .from(artifacts)

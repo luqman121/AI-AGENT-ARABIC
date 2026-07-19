@@ -26,7 +26,9 @@ test("complete M1 journey: sign in, create, append, rename, search, archive, per
   // Lands in the saved conversation.
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { level: 1, name: projectTitle })).toBeVisible();
-  await expect(page.getByText("قائمة الطعام")).toBeVisible();
+  // The request text also appears in the derived title and the route
+  // announcer; scope to the saved user message bubble specifically.
+  await expect(page.getByLabel("طلبك").getByText("قائمة الطعام")).toBeVisible();
   const projectUrl = page.url();
 
   // Append an additional requirement.

@@ -1,6 +1,11 @@
 export { cn } from "./lib/cn";
 export { AppHeader, type AppHeaderProps } from "./components/app-header";
 export {
+  ArtifactTypeScroller,
+  type ArtifactTypeOption,
+  type ArtifactTypeScrollerProps,
+} from "./components/artifact-type-pill";
+export {
   BottomNav,
   BottomNavItem,
   BottomNavItemContent,

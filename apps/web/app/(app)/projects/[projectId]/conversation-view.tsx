@@ -28,6 +28,7 @@ import {
   archiveProjectAction,
   renameProjectAction,
 } from "../../../../src/server/actions/projects";
+import type { ArtifactResultSummary } from "./artifact-result-card";
 import { RunPanel, type RunPanelSummary } from "./run-panel";
 
 export type ConversationMessage = {
@@ -43,6 +44,7 @@ type ViewProps = {
   autoStart: boolean;
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
+  latestArtifact: ArtifactResultSummary | null;
   messages: ConversationMessage[];
   projectId: string;
   title: string;
@@ -53,6 +55,7 @@ export function ConversationView({
   autoStart,
   initialEvents,
   initialRun,
+  latestArtifact,
   messages,
   projectId,
   title,
@@ -218,13 +221,6 @@ export function ConversationView({
             </Link>
           </StatusBanner>
         ) : null}
-        <RunPanel
-          archived={archived}
-          autoStart={autoStart}
-          initialEvents={initialEvents}
-          initialRun={initialRun}
-          projectId={projectId}
-        />
         <div className="flex flex-1 flex-col justify-end gap-4">
           {messages.map((message) => (
             <MessageItem
@@ -234,6 +230,15 @@ export function ConversationView({
               role={message.role}
             />
           ))}
+          <RunPanel
+            archived={archived}
+            autoStart={autoStart}
+            initialEvents={initialEvents}
+            initialRun={initialRun}
+            latestArtifact={latestArtifact}
+            projectId={projectId}
+            projectTitle={title}
+          />
           <div ref={endRef} />
         </div>
       </main>
