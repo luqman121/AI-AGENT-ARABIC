@@ -7,22 +7,13 @@ import {
   type RunStatus,
 } from "@wakil/shared";
 import { Button, StatusBanner } from "@wakil/ui";
-import {
-  Activity,
-  Ban,
-  BrainCircuit,
-  CircleCheck,
-  CircleX,
-  Clock3,
-  type LucideIcon,
-} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { newIdempotencyKey } from "../../../../src/lib/idempotency-key";
 import { cancelRunAction, startRunAction } from "../../../../src/server/actions/runs";
+import { AgentWorking } from "./agent-working";
 import { ArtifactResultCard, type ArtifactResultSummary } from "./artifact-result-card";
-import { ExecutionTimeline } from "./execution-timeline";
 
 export type RunPanelSummary = {
   cancelRequestedAtIso: string | null;
@@ -34,14 +25,6 @@ export type RunPanelSummary = {
 
 const ACTIVE_STATUSES: ReadonlySet<RunStatus> = new Set(["queued", "running"]);
 const TERMINAL_EVENTS = new Set(["run.cancelled", "run.failed", "run.succeeded"]);
-
-const STATUS: Record<RunStatus, { icon: LucideIcon; label: string; className: string }> = {
-  cancelled: { className: "text-fg-2", icon: Ban, label: "أُلغي" },
-  failed: { className: "text-fg-danger", icon: CircleX, label: "تعذّر الإكمال" },
-  queued: { className: "text-fg-info", icon: Clock3, label: "في قائمة الانتظار" },
-  running: { className: "text-fg-accent", icon: Activity, label: "قيد التشغيل" },
-  succeeded: { className: "text-fg-success", icon: CircleCheck, label: "اكتمل" },
-};
 
 export type RunPanelProps = {
   archived: boolean;
@@ -74,6 +57,8 @@ export function RunPanel({
   const seenRef = useRef(new Set(initialEvents.map((event) => event.seq)));
   const hydratedRunIdRef = useRef(initialRun?.id);
   const autoStartedRef = useRef(false);
+  const runKindRef = useRef<RunKind | null>(initialRun?.kind ?? null);
+  const autoExecutedForRef = useRef<string | null>(null);
 
   const runId = run?.id;
   const isActive = run !== null && ACTIVE_STATUSES.has(run.status);
@@ -82,6 +67,10 @@ export function RunPanel({
     run?.kind === "execution" || (run?.kind === "planning" && run.status === "succeeded")
       ? "execution"
       : "planning";
+
+  useEffect(() => {
+    runKindRef.current = run?.kind ?? null;
+  }, [run]);
 
   const applyEvent = useCallback(
     (payload: RunEventPayload) => {
@@ -103,7 +92,12 @@ export function RunPanel({
             : current,
         );
       }
-      if (payload.type === "run.succeeded") router.refresh();
+      // Planning success flows straight into execution (handled by the
+      // auto-continue effect); only refresh for execution success, which is
+      // when the persisted artifact becomes available to load.
+      if (payload.type === "run.succeeded" && runKindRef.current === "execution") {
+        router.refresh();
+      }
     },
     [router],
   );
@@ -152,6 +146,19 @@ export function RunPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, archived, run]);
 
+  // Fully automatic: a succeeded planning run continues straight into the
+  // website build with no manual tap. Guarded per planning-run id so it fires
+  // exactly once and never loops on a failed execution.
+  useEffect(() => {
+    if (archived || !run) return;
+    if (run.kind !== "planning" || run.status !== "succeeded") return;
+    if (artifacts.length > 0) return;
+    if (autoExecutedForRef.current === run.id) return;
+    autoExecutedForRef.current = run.id;
+    start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, archived, artifacts.length]);
+
   function start(): void {
     if (pending) return;
     setError(undefined);
@@ -181,8 +188,8 @@ export function RunPanel({
       } catch {
         setError(
           nextKind === "planning"
-            ? "تعذّر إعداد الخطة. تحقق من الاتصال ثم أعد المحاولة."
-            : "تعذّر بدء التنفيذ. تحقق من الاتصال ثم أعد المحاولة.",
+            ? "تعذّر بدء العمل. تحقق من الاتصال ثم أعد المحاولة."
+            : "تعذّر إنشاء الموقع. تحقق من الاتصال ثم أعد المحاولة.",
         );
       }
     });
@@ -214,79 +221,43 @@ export function RunPanel({
 
   if (archived && !run) return null;
 
-  const status = run ? STATUS[run.status] : null;
-  const StatusIcon = status?.icon;
   const streamedText = events.map((event) => event.textDelta ?? "").join("");
   const visibleEvents = events.filter((event) => event.type !== "assistant.delta");
   const failureMessage =
     run?.errorCode === "AGENT_REFUSED"
-      ? "تعذّر إعداد خطة مناسبة لهذا الطلب. عدّل الطلب ثم أعد المحاولة."
+      ? "تعذّر إعداد نتيجة مناسبة لهذا الطلب. عدّل الطلب ثم أعد المحاولة."
       : run?.errorCode === "AGENT_LIMIT_EXCEEDED"
-        ? "توقف إعداد الخطة عند حدّ الاستخدام المسموح. اختصر الطلب ثم أعد المحاولة."
+        ? "توقف العمل عند حدّ الاستخدام المسموح. اختصر الطلب ثم أعد المحاولة."
         : run?.errorCode === "PROVIDER_RATE_LIMITED"
           ? "الخدمة مشغولة الآن. انتظر قليلاً ثم أعد المحاولة."
           : run?.errorCode?.startsWith("SANDBOX_")
             ? "تعذّر التحقق من الموقع في بيئة التنفيذ المعزولة. يمكنك إعادة المحاولة."
             : run?.errorCode === "STORAGE_UNAVAILABLE"
               ? "تعذّر حفظ ملفات النتيجة بشكل خاص. يمكنك إعادة المحاولة."
-              : run?.kind === "execution"
-                ? "تعذّر تنفيذ الموقع. يمكنك بدء محاولة جديدة."
-                : "تعذّر إعداد الخطة. يمكنك بدء تشغيل جديد.";
+              : "تعذّر إكمال العمل. يمكنك إعادة المحاولة.";
 
-  const executionMode = run?.kind === "execution";
+  // "Working" spans the whole automatic flow: an active run, the brief window
+  // where a succeeded plan is handing off to the build, and the pre-run instant
+  // right after creation before the first run exists.
+  const working =
+    !archived &&
+    (isActive ||
+      (run?.kind === "planning" && run.status === "succeeded" && artifacts.length === 0) ||
+      (!run && autoStart));
+  const isFailed = run?.status === "failed";
+  const isCancelled = run?.status === "cancelled";
 
   return (
-    <section aria-labelledby="run-panel-title" className="wk-elevate-1 mb-4 rounded-md p-4">
-      <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
-        <div>
-          <h2 id="run-panel-title" className="text-base font-bold text-fg">
-            {executionMode ? "تنفيذ الموقع" : "إعداد خطة المشروع"}
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-fg-2">
-            {executionMode
-              ? "إنشاء وتحقق معزول ثم حفظ خاص للمعاينة والتنزيل."
-              : "خطة عربية حقيقية تُحفظ أثناء وصولها."}
-          </p>
-        </div>
-        {status && StatusIcon ? (
-          <span
-            className={`flex shrink-0 items-center gap-1.5 rounded-full bg-overlay px-3 py-1.5 text-xs font-bold ${status.className}`}
-          >
-            <StatusIcon aria-hidden className={`size-4${isActive ? " animate-pulse" : ""}`} />
-            {status.label}
-          </span>
-        ) : null}
-      </div>
-
-      {streamedText && isActive && !executionMode ? (
-        <div aria-live="polite" className="my-4 rounded-md border border-line bg-surface-2 p-3">
-          <p className="whitespace-pre-wrap break-words text-sm leading-7 text-fg">
-            {streamedText}
-          </p>
-        </div>
+    <section aria-label="حالة الوكيل" className="mb-4">
+      {working ? (
+        <AgentWorking
+          runKind={run?.kind ?? "planning"}
+          status={run?.status ?? "queued"}
+          events={visibleEvents}
+          streamedText={streamedText}
+          active={isActive}
+        />
       ) : null}
-
-      {run && visibleEvents.length > 0 ? (
-        <ExecutionTimeline events={visibleEvents} runKind={run.kind} status={run.status} />
-      ) : isActive ? (
-        <div
-          aria-live="polite"
-          className="my-4 flex items-center gap-3 rounded-md border border-line bg-surface-2 p-3"
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-fg-accent">
-            <BrainCircuit aria-hidden className="size-5 animate-pulse" />
-          </span>
-          <p className="text-sm leading-6 text-fg">
-            {executionMode ? "وكيل يجهّز بيئة التنفيذ الآن…" : "وكيل يفكّر في طلبك الآن…"}
-          </p>
-        </div>
-      ) : run ? (
-        <p className="my-4 text-sm leading-6 text-fg-2">بانتظار أول تحديث محفوظ من العامل.</p>
-      ) : (
-        <p className="my-4 text-sm leading-6 text-fg-2">
-          ابدأ بإعداد خطة قصيرة لتراجعها قبل تنفيذ المشروع.
-        </p>
-      )}
 
       {reconnecting && isActive ? (
         <StatusBanner className="mb-3" tone="info">
@@ -300,9 +271,15 @@ export function RunPanel({
         </StatusBanner>
       ) : null}
 
-      {run?.status === "failed" ? (
+      {isFailed ? (
         <StatusBanner className="mb-3" tone="danger">
           {failureMessage}
+        </StatusBanner>
+      ) : null}
+
+      {isCancelled ? (
+        <StatusBanner className="mb-3" tone="info">
+          أُلغيت العملية. يمكنك البدء من جديد.
         </StatusBanner>
       ) : null}
 
@@ -328,22 +305,30 @@ export function RunPanel({
       {archived ? null : isActive ? (
         <Button
           className="w-full"
-          variant="secondary"
+          variant="ghost"
           onClick={cancel}
           loading={pending}
           disabled={cancelRequested}
         >
           {cancelRequested ? "تم طلب الإلغاء" : "إلغاء التشغيل"}
         </Button>
-      ) : run?.kind === "execution" && run.status === "succeeded" ? (
-        <Button className="w-full" variant="secondary" onClick={start} loading={pending}>
-          إعادة التنفيذ
-        </Button>
-      ) : (
+      ) : isFailed ? (
         <Button className="w-full" onClick={start} loading={pending}>
-          {nextKind === "execution" ? "بدء التنفيذ" : "إعداد الخطة"}
+          إعادة المحاولة
         </Button>
-      )}
+      ) : isCancelled ? (
+        <Button className="w-full" onClick={start} loading={pending}>
+          ابدأ من جديد
+        </Button>
+      ) : artifacts.length > 0 ? (
+        <Button className="w-full" variant="ghost" onClick={start} loading={pending}>
+          إعادة الإنشاء
+        </Button>
+      ) : !run ? (
+        <Button className="w-full" onClick={start} loading={pending}>
+          ابدأ العمل
+        </Button>
+      ) : null}
     </section>
   );
 }

@@ -4,6 +4,25 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Automatic run flow and a calm working screen
+
+- Made the run fully automatic: a succeeded planning run now continues straight into the website
+  build with no manual "start execution" tap. The customer sends one idea and the flow proceeds to
+  the final result on its own. The build remains a bounded, isolated sandbox run; cancellation stays
+  available while work is in progress.
+- Redesigned the project working screen around a calm "agent is working" state: a slowly rotating
+  brain, one honest status line, and a short unified checklist (understand → plan → build →
+  finalize) driven by the real persisted run events. The agent's thinking/plan text is hidden by
+  default and shown only behind an opt-in "عرض التفاصيل" disclosure. Removed the boxy panel chrome.
+- Replaced `execution-timeline` (which referenced undefined theme tokens and rendered largely
+  unstyled) with a new `AgentWorking` component using the app's real design tokens; corrected the
+  cancelled run to read as a neutral state rather than a failure.
+- Updated the Playwright run specs to the new UI and automatic flow. Note: the e2e harness
+  configures no sandbox, so the automatic build stops at the sandbox-configuration step there;
+  reaching it confirms planning succeeded. Verified `pnpm lint`, `pnpm typecheck`, `pnpm test`,
+  `pnpm format:check`, and `pnpm build`; Playwright requires Docker (and a sandbox for the full
+  build path) and was not run in this session.
+
 ### Email + password sign-in
 
 - Replaced the email magic-link sign-in with direct email + password authentication backed by the

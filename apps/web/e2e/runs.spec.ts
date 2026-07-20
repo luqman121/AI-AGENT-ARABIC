@@ -68,28 +68,22 @@ async function createProject(
 }
 
 function runPanel(page: Page) {
-  return page.getByRole("region", { name: "إعداد خطة المشروع" });
+  return page.getByRole("region", { name: "حالة الوكيل" });
 }
 
-async function expectSuccessfulRun(page: Page): Promise<void> {
+/**
+ * The flow is fully automatic: planning runs, then the build auto-starts. The
+ * e2e harness configures no Daytona sandbox, so the build stops at the
+ * sandbox-configuration step. Reaching that message confirms planning
+ * succeeded (the build requires a persisted plan) without a real sandbox.
+ * Production, with a configured sandbox, continues on to a downloadable
+ * artifact — covered by the seeded-artifact preview test below.
+ */
+async function expectPlanThenBuildBlocked(page: Page): Promise<void> {
   const panel = runPanel(page);
-  await expect(panel.getByText("اكتمل", { exact: true })).toBeVisible({ timeout: 20_000 });
-  // Rehydrate from PostgreSQL before asserting the immutable event order. The
-  // terminal SSE can arrive before an earlier event has painted on slower UIs.
-  await page.reload();
-  await expect(panel.getByText("اكتمل", { exact: true })).toBeVisible();
-  await expect(panel.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
-  const eventDetails = panel.locator("details");
-  await eventDetails.getByText("تفاصيل التنفيذ", { exact: true }).click();
-  await expect(eventDetails.getByRole("listitem")).toHaveText([
-    "#1 في قائمة الانتظار",
-    "#2 بدأ التشغيل",
-    "#3 بدأ إعداد الخطة",
-    "#6 اكتملت الخطة",
-    "#7 اكتمل التشغيل",
-  ]);
-  await expect(page.getByRole("article", { name: "رد وكيل" })).toContainText("خطة موجزة للمشروع");
-  await expect(panel.getByRole("button", { name: "بدء التنفيذ" })).toBeVisible();
+  await expect(
+    panel.getByText("تعذّر التحقق من الموقع في بيئة التنفيذ المعزولة.", { exact: false }),
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 async function seedPrivateArtifact(projectId: string): Promise<void> {
@@ -213,11 +207,13 @@ async function holdWorkerAtValidation(): Promise<() => Promise<void>> {
   };
 }
 
-test("completes a real run with ordered persisted events", async ({ page }) => {
+test("auto-runs planning then continues into the build", async ({ page }) => {
   const consoleWatcher = watchConsole(page);
   await createProject(page);
 
-  await expectSuccessfulRun(page);
+  const panel = runPanel(page);
+  await expect(panel.getByText("الوكيل يعمل الآن")).toBeVisible({ timeout: 15_000 });
+  await expectPlanThenBuildBlocked(page);
   await assertMobileQuality(page);
   consoleWatcher.assertClean();
 });
@@ -225,7 +221,7 @@ test("completes a real run with ordered persisted events", async ({ page }) => {
 test("private artifact preview and download @visual", async ({ page }, testInfo: TestInfo) => {
   const consoleWatcher = watchConsole(page);
   await createProject(page);
-  await expectSuccessfulRun(page);
+  await expectPlanThenBuildBlocked(page);
   const projectId = page.url().match(/projects\/([0-9a-f-]{36})/)?.[1];
   if (!projectId) throw new Error("Project ID missing from URL");
   await seedPrivateArtifact(projectId);
@@ -241,33 +237,35 @@ test("private artifact preview and download @visual", async ({ page }, testInfo:
   consoleWatcher.assertClean();
 });
 
-test("queued, running, and succeeded run states @visual", async ({ page }, testInfo: TestInfo) => {
+test("queued, running, and build-blocked run states @visual", async ({
+  page,
+}, testInfo: TestInfo) => {
   const consoleWatcher = watchConsole(page);
   // The planning run auto-starts on creation, so the queue must already be
-  // paused for it to land — and stay — in the queued state to capture.
+  // paused for the working surface to appear while nothing is processing yet.
   await runQueue.pause();
   await createProject(page);
   const panel = runPanel(page);
 
-  await expect(panel.getByText("في قائمة الانتظار", { exact: true }).first()).toBeVisible();
+  // Queued: the calm "working" surface (rotating brain + checklist) is shown.
+  await expect(panel.getByText("الوكيل يعمل الآن")).toBeVisible();
   await captureState(page, testInfo, "run-queued");
 
   const releaseValidationLock = await holdWorkerAtValidation();
   try {
     await runQueue.resume();
-    await expect(panel.getByText("قيد التشغيل", { exact: true })).toBeVisible({ timeout: 15_000 });
+    // Running: the same surface, now with the run actively processing.
+    await expect(panel.getByText("الوكيل يعمل الآن")).toBeVisible({ timeout: 15_000 });
+    await expect(panel.getByRole("button", { name: "إلغاء التشغيل" })).toBeVisible();
     await captureState(page, testInfo, "run-running");
   } finally {
     await releaseValidationLock();
   }
 
-  await expect(panel.getByText("خطة موجزة للمشروع", { exact: false })).toBeVisible({
-    timeout: 15_000,
-  });
-  await captureState(page, testInfo, "run-streaming");
-
-  await expect(panel.getByText("اكتمل", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await captureState(page, testInfo, "run-succeeded");
+  // The plan completes and the build auto-starts; without a sandbox it stops
+  // at the sandbox-configuration step (see expectPlanThenBuildBlocked).
+  await expectPlanThenBuildBlocked(page);
+  await captureState(page, testInfo, "run-build-blocked");
   consoleWatcher.assertClean();
 });
 
@@ -285,32 +283,34 @@ test("reconnecting and cancelled run states @visual", async ({ page }, testInfo:
   await captureState(page, testInfo, "run-reconnecting");
 
   await page.unroute("**/api/projects/*/runs/*/events");
-  await expect(panel.getByText("في قائمة الانتظار", { exact: true }).first()).toBeVisible();
+  await expect(panel.getByRole("button", { name: "إلغاء التشغيل" })).toBeVisible();
   await panel.getByRole("button", { name: "إلغاء التشغيل" }).click();
   await expect(
     panel.getByText("تم إرسال طلب الإلغاء. سيتوقف العامل عند نقطة التحقق التالية."),
   ).toBeVisible();
 
   await runQueue.resume();
-  await expect(panel.getByText("أُلغي", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(panel.getByText("أُلغيت العملية. يمكنك البدء من جديد.")).toBeVisible({
+    timeout: 20_000,
+  });
   await captureState(page, testInfo, "run-cancelled");
 });
 
 test("refused run state @visual", async ({ page }, testInfo: TestInfo) => {
   await createProject(page, "اختبر حالة الرفض");
   const panel = runPanel(page);
-  await expect(panel.getByText("تعذّر إعداد خطة مناسبة لهذا الطلب.", { exact: false })).toBeVisible(
-    {
-      timeout: 20_000,
-    },
-  );
+  await expect(
+    panel.getByText("تعذّر إعداد نتيجة مناسبة لهذا الطلب.", { exact: false }),
+  ).toBeVisible({
+    timeout: 20_000,
+  });
   await captureState(page, testInfo, "run-refused");
 });
 
 test("provider failure state @visual", async ({ page }, testInfo: TestInfo) => {
   await createProject(page, "اختبر فشل المزود");
   const panel = runPanel(page);
-  await expect(panel.getByText("تعذّر إعداد الخطة. يمكنك بدء تشغيل جديد.")).toBeVisible({
+  await expect(panel.getByText("تعذّر إكمال العمل. يمكنك إعادة المحاولة.")).toBeVisible({
     timeout: 20_000,
   });
   await captureState(page, testInfo, "run-provider-failed");
@@ -320,7 +320,7 @@ test("limit exceeded state @visual", async ({ page }, testInfo: TestInfo) => {
   await createProject(page, "اختبر حد الاستخدام");
   const panel = runPanel(page);
   await expect(
-    panel.getByText("توقف إعداد الخطة عند حدّ الاستخدام المسموح.", { exact: false }),
+    panel.getByText("توقف العمل عند حدّ الاستخدام المسموح.", { exact: false }),
   ).toBeVisible({
     timeout: 20_000,
   });

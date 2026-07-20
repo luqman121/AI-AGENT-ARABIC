@@ -45,11 +45,9 @@ test("projects empty, create, and conversation states @visual", async ({ page },
   await page.getByRole("button", { name: "إرسال الطلب" }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { level: 1, name: seededTitle })).toBeVisible();
-  // The plan starts thinking immediately — no manual "start" tap needed.
+  // The agent starts working immediately — no manual "start" tap needed.
   await expect(
-    page
-      .getByRole("region", { name: "إعداد خطة المشروع" })
-      .getByRole("button", { name: "إلغاء التشغيل" }),
+    page.getByRole("region", { name: "حالة الوكيل" }).getByText("الوكيل يعمل الآن"),
   ).toBeVisible({ timeout: 15_000 });
   await captureState(page, testInfo, "conversation-default");
 
