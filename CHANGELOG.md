@@ -4,6 +4,41 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Internal admin dashboard
+
+- Added a secure, real-data operations dashboard inside the web app at `/admin` (no separate app, no
+  admin framework) covering overview, users, projects, runs, usage, system health, and an audit log.
+  Arabic RTL, mobile-first, built on the existing design tokens and Cairo typography.
+- Introduced platform roles (`user`/`support`/`admin`) on `users`, distinct from the workspace
+  tenancy role. `support` is read-only across every page; `admin` may perform mutations. The
+  permission matrix lives once in `@wakil/shared` and is enforced **server-side** on layouts, pages,
+  the system route handler, and every server action. Roles are read from the database per request
+  (never trusted from the JWT), so a role change or suspension takes effect immediately. Suspended
+  accounts are redirected to a public `/suspended` page.
+- Added guarded admin mutations, each validated at the boundary, wrapped in a transaction with a
+  redacted before/after audit row, and rate-limited: suspend/reactivate, change plan, change usage
+  limit (integer micros), change role (admin only), cancel run (real cooperative cancel), retry run
+  (a genuine new queued run re-enqueued via BullMQ — never a status flip), and archive project.
+  Suspending or demoting the last active admin is refused. Permanent deletion is intentionally not
+  implemented (object-storage cleanup semantics are undefined; documented in
+  `docs/admin-dashboard.md`).
+- Security: `password_hash` is never selected or serialized (the user detail query returns only a
+  boolean presence flag); customer content is rendered as plain text; private attachments show
+  metadata only; the `admin_audit_logs` ledger is append-only, cross-tenant, and redacts any
+  password/hash/secret/token/key before persisting. Usage is aggregated directly from the `runs`
+  table (integer micros, no floats, no double-counting) with supporting indexes; lists use
+  server-side pagination and filters with no unbounded counts.
+- Added migration `0008` (additive: `admin_audit_logs`, new `users` role/status/plan/limit columns,
+  and read indexes on `users`/`runs`/`projects`), an `Admin link` on the account page for
+  support/admin, and an optional `WORKER_HEALTH_URL` env var for the system page. Prepared (unused)
+  env flags for future Langfuse/PostHog integration without adding any external dependency.
+- Tests: added unit tests for the RBAC matrix, cost/format helpers, audit redaction, and input
+  validation (`packages/shared`, run in `pnpm test`); integration specs for RBAC enforcement,
+  `password_hash` never returned, audit creation/redaction/immutability, and cancel/retry/last-admin
+  validation; and a Playwright admin spec. Verified `pnpm lint`, `pnpm typecheck`, `pnpm test`,
+  `pnpm format:check`, and `pnpm build`. The integration and Playwright suites require Docker (and,
+  for e2e, the full local stack) and were not run in this session.
+
 ### Automatic run flow and a calm working screen
 
 - Made the run fully automatic: a succeeded planning run now continues straight into the website
