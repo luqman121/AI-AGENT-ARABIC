@@ -41,7 +41,7 @@ export default async function AccountPage() {
         <section className="wk-elevate-1 mt-4 flex flex-col gap-3 rounded-md p-4">
           <h2 className="text-lg font-bold text-fg">طرق تسجيل الدخول المتاحة</h2>
           <ul className="flex flex-col gap-2 text-base text-fg-2">
-            <li>رابط الدخول عبر البريد الإلكتروني</li>
+            <li>البريد الإلكتروني وكلمة المرور</li>
             {googleEnabled ? <li>حساب Google</li> : null}
           </ul>
         </section>

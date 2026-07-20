@@ -3,54 +3,26 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MAILPIT_URL = "http://127.0.0.1:8025";
-
 export function uniqueEmail(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@wakil.test`;
 }
 
-type MailpitSearchResult = {
-  messages: Array<{ ID: string }>;
-};
+/** Shared test password; meets the 8-character minimum enforced by the form. */
+export const TEST_PASSWORD = "wakil-passw0rd";
 
-type MailpitMessage = {
-  HTML: string;
-  Text: string;
-};
-
-/** Polls Mailpit for the newest magic-link email sent to the address. */
-export async function fetchMagicLink(email: string, baseUrl: string): Promise<string> {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const search = (await (
-      await fetch(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)
-    ).json()) as MailpitSearchResult;
-    const id = search.messages[0]?.ID;
-    if (id) {
-      const message = (await (
-        await fetch(`${MAILPIT_URL}/api/v1/message/${id}`)
-      ).json()) as MailpitMessage;
-      const source = `${message.HTML}\n${message.Text}`.replaceAll("&amp;", "&");
-      const match = source.match(
-        new RegExp(`${baseUrl.replaceAll(".", "\\.")}/api/auth/callback/nodemailer[^"'\\s<)]+`),
-      );
-      if (match?.[0]) return match[0];
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error(`No magic link email arrived for ${email}`);
-}
-
-const BASE_URL = "http://localhost:3101";
-
-/** Full email magic-link sign-in through Mailpit. */
-export async function signIn(page: Page, email: string): Promise<void> {
-  const baseUrl = BASE_URL;
+/**
+ * Email + password sign-in. The first time an address is used the account is
+ * created and logged in; later calls with the same address log straight in.
+ */
+export async function signIn(
+  page: Page,
+  email: string,
+  password: string = TEST_PASSWORD,
+): Promise<void> {
   await page.goto("/sign-in");
   await page.getByLabel("البريد الإلكتروني").fill(email);
-  await page.getByRole("button", { name: "أرسل رابط الدخول" }).click();
-  await expect(page).toHaveURL(/check-email/);
-  const link = await fetchMagicLink(email, baseUrl);
-  await page.goto(link);
+  await page.getByLabel("كلمة المرور").fill(password);
+  await page.getByRole("button", { name: "الدخول" }).click();
   await expect(page).toHaveURL(/\/new$/, { timeout: 15_000 });
 }
 

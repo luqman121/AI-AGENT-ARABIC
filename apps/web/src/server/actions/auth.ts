@@ -1,34 +1,70 @@
 "use server";
 
+import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 
 import { signIn, signOut } from "../../auth";
-
-const emailSchema = z.email({ error: "أدخل بريدًا إلكترونيًا صحيحًا." });
+import { createCredentialsUser, credentialsInputSchema, getUserByEmail } from "../auth/credentials";
+import { getDatabase } from "../db";
 
 export type SignInFormState = {
-  emailError?: string;
+  formError?: string;
+  fieldErrors?: {
+    email?: string;
+    password?: string;
+  };
 };
 
 /**
- * Starts the email magic-link flow. Auth.js redirects to the Arabic
- * check-email page; the link itself is never logged or returned.
+ * Email + password sign-in. A known email logs in when the password matches;
+ * an unknown email creates the account and logs in. Either way the user lands
+ * directly in the app — there is no email round-trip. The password is never
+ * logged or returned.
  */
-export async function signInWithEmailAction(
+export async function signInWithPasswordAction(
   _previous: SignInFormState,
   formData: FormData,
 ): Promise<SignInFormState> {
-  const parsed = emailSchema.safeParse(String(formData.get("email") ?? "").trim());
+  const parsed = credentialsInputSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
   if (!parsed.success) {
-    return { emailError: parsed.error.issues[0]?.message ?? "أدخل بريدًا إلكترونيًا صحيحًا." };
+    const fieldErrors: SignInFormState["fieldErrors"] = {};
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if (field === "email") fieldErrors.email ??= issue.message;
+      if (field === "password") fieldErrors.password ??= issue.message;
+    }
+    return { fieldErrors };
   }
+
+  const { email, password } = parsed.data;
+  const db = getDatabase();
+
+  // New email: create the account first, then authenticate it below so the
+  // session is established through the same credentials path as a returning user.
+  const existing = await getUserByEmail(db, email);
+  if (!existing) {
+    await createCredentialsUser(db, email, password);
+  } else if (!existing.passwordHash) {
+    // The email belongs to an OAuth-only account with no password set.
+    return { formError: "هذا البريد مسجّل بطريقة دخول أخرى. استخدم Google للمتابعة." };
+  }
+
   try {
-    await signIn("nodemailer", { email: parsed.data, redirect: false, redirectTo: "/new" });
-  } catch {
-    return { emailError: "تعذّر إرسال رابط الدخول. أعد المحاولة." };
+    await signIn("credentials", { email, password, redirect: false });
+  } catch (error) {
+    // A credentials mismatch (wrong password for an existing account) surfaces
+    // as an AuthError; anything else is unexpected and must propagate.
+    if (error instanceof AuthError) {
+      return { formError: "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور." };
+    }
+    throw error;
   }
-  redirect("/sign-in/check-email");
+
+  // Outside the try/catch so Next's redirect signal is never swallowed.
+  redirect("/new");
 }
 
 export async function signInWithGoogleAction(): Promise<void> {

@@ -4,8 +4,8 @@ import { Button, StatusBanner, TextField } from "@wakil/ui";
 import { useActionState } from "react";
 
 import {
-  signInWithEmailAction,
   signInWithGoogleAction,
+  signInWithPasswordAction,
   type SignInFormState,
 } from "../../../src/server/actions/auth";
 
@@ -18,11 +18,12 @@ export function SignInForm({
   authError: string | null;
   googleEnabled: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(signInWithEmailAction, INITIAL_STATE);
+  const [state, formAction, pending] = useActionState(signInWithPasswordAction, INITIAL_STATE);
 
   return (
     <div className="flex flex-col gap-4">
       {authError ? <StatusBanner tone="danger">{authError}</StatusBanner> : null}
+      {state.formError ? <StatusBanner tone="danger">{state.formError}</StatusBanner> : null}
       <form action={formAction} className="flex flex-col gap-4" noValidate>
         <TextField
           name="email"
@@ -33,15 +34,26 @@ export function SignInForm({
           inputMode="email"
           dir="ltr"
           className="text-start"
-          error={state.emailError}
+          error={state.fieldErrors?.email}
+          required
+        />
+        <TextField
+          name="password"
+          type="password"
+          label="كلمة المرور"
+          placeholder="٨ أحرف على الأقل"
+          autoComplete="current-password"
+          dir="ltr"
+          className="text-start"
+          error={state.fieldErrors?.password}
           required
         />
         <Button type="submit" loading={pending}>
-          أرسل رابط الدخول
+          الدخول
         </Button>
       </form>
       <p className="text-center text-sm text-fg-3">
-        سنرسل لك رابط دخول صالحًا لمرة واحدة، بلا كلمة مرور.
+        أدخل بريدك وكلمة المرور للدخول. إن لم يكن لديك حساب، سيُنشأ لك تلقائيًا.
       </p>
       {googleEnabled ? (
         <>

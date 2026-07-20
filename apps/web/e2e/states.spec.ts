@@ -17,8 +17,8 @@ test("auth states @visual", async ({ page }, testInfo) => {
   await expect(page.getByRole("heading", { name: "وكيل" })).toBeVisible();
   await captureState(page, testInfo, "auth-sign-in");
 
-  // Client-side validation error.
-  await page.getByRole("button", { name: "أرسل رابط الدخول" }).click();
+  // Empty submit surfaces the Arabic field validation errors.
+  await page.getByRole("button", { name: "الدخول" }).click();
   await expect(page.getByText("أدخل بريدًا إلكترونيًا صحيحًا.")).toBeVisible();
   await captureState(page, testInfo, "auth-validation-error");
 

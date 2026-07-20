@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"];
 
-const PUBLIC_PATHS = new Set(["/sign-in", "/sign-in/check-email", "/offline"]);
+const PUBLIC_PATHS = new Set(["/sign-in", "/offline"]);
 
 function hasSessionCookie(request: NextRequest): boolean {
   return SESSION_COOKIES.some((name) => request.cookies.has(name));

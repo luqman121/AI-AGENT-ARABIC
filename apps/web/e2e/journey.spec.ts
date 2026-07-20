@@ -16,7 +16,7 @@ test("complete M1 journey: sign in, create, append, rename, search, archive, per
 }) => {
   const consoleWatcher = watchConsole(page);
 
-  // Sign in through a real Mailpit magic link.
+  // Sign in with email + password (account created on first use).
   await signIn(page, email);
 
   // Create a database-backed project from a single idea.

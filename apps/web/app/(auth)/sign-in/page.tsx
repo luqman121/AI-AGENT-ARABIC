@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "تعذّر تسجيل الدخول بهذا الحساب. جرّب بريدًا آخر.",
   Configuration: "تعذّر تسجيل الدخول بسبب إعداد غير مكتمل. أعد المحاولة لاحقًا.",
-  Verification: "انتهت صلاحية رابط الدخول أو استُخدم من قبل. اطلب رابطًا جديدًا.",
+  CredentialsSignin: "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور.",
   default: "تعذّر تسجيل الدخول. أعد المحاولة.",
 };
 

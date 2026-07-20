@@ -4,6 +4,24 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Email + password sign-in
+
+- Replaced the email magic-link sign-in with direct email + password authentication backed by the
+  local PostgreSQL database. Signing in with a new email creates the account and logs in
+  immediately; a known email logs in when the password matches. There is no email round-trip.
+- Added a nullable `password_hash` column to `users` (committed migration `0007`) storing a
+  self-describing scrypt hash (`scrypt$cost$r$p$salt$hash`) produced with Node's built-in crypto —
+  no new dependency. Passwords are verified in constant time and never logged or returned. OAuth
+  accounts keep a null hash and cannot sign in with a password.
+- Switched Auth.js to the Credentials provider with JWT sessions (required by that provider) while
+  keeping the Drizzle adapter for user persistence and the optional Google provider intact. Account
+  creation happens in the sign-in server action; the provider only verifies an existing hash.
+- Rebuilt the sign-in screen with email and password fields, removed the now-unreachable check-email
+  page, and updated the account screen and route guards accordingly.
+- Updated Playwright helpers and specs to sign in with a password. Verified `pnpm lint`,
+  `pnpm typecheck`, `pnpm test`, `pnpm format:check`, and `pnpm build`; Playwright/Testcontainers
+  verification requires a Docker daemon that was not available in this session and was not run.
+
 ### Private attachments, durable execution, and mobile verification
 
 - Added tenant-scoped private input attachments for project creation and follow-up messages, with

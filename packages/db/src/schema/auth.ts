@@ -22,6 +22,9 @@ export const users = pgTable(
     email: text("email").notNull(),
     emailVerified: timestamp("email_verified", { withTimezone: true }),
     image: text("image"),
+    // Scrypt-derived hash for email + password sign-in. Null for accounts
+    // created through an OAuth provider (e.g. Google), which never have one.
+    passwordHash: text("password_hash"),
     ...timestamps,
   },
   (table) => [uniqueIndex("users_email_unique").on(table.email)],
