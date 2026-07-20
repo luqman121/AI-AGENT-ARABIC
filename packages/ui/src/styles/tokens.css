@@ -175,6 +175,84 @@
   animation: wk-rise-in var(--wk-motion-base) var(--wk-ease-enter);
 }
 
+/*
+ * Ambient "agent working" motion. Transform/opacity only (GPU-friendly).
+ * The spin, breathe, and glow run on three separate elements so their
+ * transforms never collide. All are disabled under reduced motion below.
+ */
+@keyframes wk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes wk-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes wk-glow {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes wk-check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes wk-timeline-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wk-brain-spin {
+  animation: wk-spin 6s linear infinite;
+}
+
+.wk-breathe {
+  animation: wk-breathe 3.4s var(--wk-ease-enter) infinite;
+}
+
+.wk-glow {
+  animation: wk-glow 3.4s ease-in-out infinite;
+}
+
+.wk-check-pop {
+  animation: wk-check-pop 260ms var(--wk-ease-enter);
+}
+
+.wk-timeline-in {
+  animation: wk-timeline-in var(--wk-motion-base) var(--wk-ease-enter);
+}
+
 /* Reduced motion: state changes become instant product-wide. */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -53,6 +53,7 @@ export function RunPanel({
   const [error, setError] = useState<string | undefined>();
   const [startKey, setStartKey] = useState(newIdempotencyKey);
   const [cancelKey, setCancelKey] = useState(newIdempotencyKey);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const seenRef = useRef(new Set(initialEvents.map((event) => event.seq)));
   const hydratedRunIdRef = useRef(initialRun?.id);
@@ -223,6 +224,7 @@ export function RunPanel({
 
   const streamedText = events.map((event) => event.textDelta ?? "").join("");
   const visibleEvents = events.filter((event) => event.type !== "assistant.delta");
+  const latestEventType = events.length > 0 ? events[events.length - 1]?.type : undefined;
   const failureMessage =
     run?.errorCode === "AGENT_REFUSED"
       ? "تعذّر إعداد نتيجة مناسبة لهذا الطلب. عدّل الطلب ثم أعد المحاولة."
@@ -254,8 +256,11 @@ export function RunPanel({
           runKind={run?.kind ?? "planning"}
           status={run?.status ?? "queued"}
           events={visibleEvents}
+          latestEventType={latestEventType}
           streamedText={streamedText}
           active={isActive}
+          detailsOpen={detailsOpen}
+          onToggleDetails={() => setDetailsOpen((open) => !open)}
         />
       ) : null}
 
@@ -290,12 +295,15 @@ export function RunPanel({
       ) : null}
 
       {artifacts.length > 0 ? (
-        <div className="mb-4 flex flex-col gap-3" aria-label="نتائج المشروع">
+        <div className="mb-2 flex flex-col gap-3" aria-label="نتائج المشروع">
           {artifacts.map((artifact, index) => (
             <ArtifactResultCard
               artifact={artifact}
               key={artifact.id}
               projectId={projectId}
+              primary={index === 0}
+              onRebuild={index === 0 && !archived ? start : undefined}
+              rebuilding={pending}
               title={index === 0 ? projectTitle : `${projectTitle} — إصدار سابق`}
             />
           ))}
@@ -303,6 +311,7 @@ export function RunPanel({
       ) : null}
 
       {archived ? null : isActive ? (
+        // While working, the only bottom action is Cancel.
         <Button
           className="w-full"
           variant="ghost"
@@ -319,10 +328,6 @@ export function RunPanel({
       ) : isCancelled ? (
         <Button className="w-full" onClick={start} loading={pending}>
           ابدأ من جديد
-        </Button>
-      ) : artifacts.length > 0 ? (
-        <Button className="w-full" variant="ghost" onClick={start} loading={pending}>
-          إعادة الإنشاء
         </Button>
       ) : !run ? (
         <Button className="w-full" onClick={start} loading={pending}>

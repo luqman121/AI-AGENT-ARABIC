@@ -17,6 +17,15 @@ All notable changes to Wakil are documented in this file.
 - Replaced `execution-timeline` (which referenced undefined theme tokens and rendered largely
   unstyled) with a new `AgentWorking` component using the app's real design tokens; corrected the
   cancelled run to read as a neutral state rather than a failure.
+- Polished the working screen to production quality without changing the flow: a smaller, "alive"
+  brain (slow rotation + breathing + a soft glow), tighter one-handed mobile density, an
+  event-driven status line (each label maps to a real event, with a graceful generic fallback), an
+  honest "stage N of 4" indicator (no fake percentages), a three-state checklist with smooth colour
+  transitions and an animated completion check, and the details turned into a premium accordion
+  timeline (rotating chevron, height animation, capped plan text). Reworked the success state into a
+  calm completion moment — an animated success mark, a branded cover, and one clear "معاينة النتيجة"
+  action with download/share beneath — and made the bottom action show only Cancel while working.
+  Added GPU-friendly, reduced-motion-aware motion primitives to the design system.
 - Updated the Playwright run specs to the new UI and automatic flow. Note: the e2e harness
   configures no sandbox, so the automatic build stops at the sandbox-configuration step there;
   reaching it confirms planning succeeded. Verified `pnpm lint`, `pnpm typecheck`, `pnpm test`,
