@@ -1,10 +1,15 @@
+import { canAccessAdmin } from "@wakil/shared";
 import { AppHeader, Ltr, PageShell } from "@wakil/ui";
-import { BarChart3, ChevronLeft } from "lucide-react";
+import { BarChart3, ChevronLeft, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getWebEnv, isGoogleAuthEnabled } from "../../../src/env";
-import { getSessionUser, requireAuthorizedContext } from "../../../src/server/auth/session";
+import {
+  getSessionAccount,
+  getSessionUser,
+  requireAuthorizedContext,
+} from "../../../src/server/auth/session";
 import { SignOutButton } from "./sign-out-button";
 
 export const metadata: Metadata = {
@@ -14,6 +19,8 @@ export const metadata: Metadata = {
 export default async function AccountPage() {
   await requireAuthorizedContext();
   const user = await getSessionUser();
+  const account = await getSessionAccount();
+  const showAdminLink = account ? canAccessAdmin(account.role) : false;
   const googleEnabled = isGoogleAuthEnabled(getWebEnv());
 
   return (
@@ -54,6 +61,17 @@ export default async function AccountPage() {
           <span className="flex-1 text-base font-semibold">الاستخدام</span>
           <ChevronLeft aria-hidden className="size-5 text-fg-3" />
         </Link>
+
+        {showAdminLink ? (
+          <Link
+            href="/admin"
+            className="wk-elevate-1 wk-focus-ring mt-4 flex min-h-11 items-center gap-3 rounded-md p-4 text-fg transition-colors duration-150 hover:bg-overlay"
+          >
+            <ShieldCheck aria-hidden className="size-5 text-fg-2" />
+            <span className="flex-1 text-base font-semibold">لوحة الإدارة</span>
+            <ChevronLeft aria-hidden className="size-5 text-fg-3" />
+          </Link>
+        ) : null}
 
         <div className="mt-6">
           <SignOutButton />
