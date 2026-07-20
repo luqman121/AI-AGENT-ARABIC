@@ -1,3 +1,4 @@
+export * from "./admin-audit.js";
 export * from "./audit.js";
 export * from "./artifacts.js";
 export * from "./attachments.js";

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"];
 
-const PUBLIC_PATHS = new Set(["/sign-in", "/offline"]);
+const PUBLIC_PATHS = new Set(["/sign-in", "/offline", "/suspended"]);
 
 function hasSessionCookie(request: NextRequest): boolean {
   return SESSION_COOKIES.some((name) => request.cookies.has(name));
@@ -31,5 +31,14 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: ["/", "/new", "/projects/:path*", "/usage", "/account", "/sign-in/:path*", "/sign-in"],
+  matcher: [
+    "/",
+    "/new",
+    "/projects/:path*",
+    "/usage",
+    "/account",
+    "/admin/:path*",
+    "/sign-in/:path*",
+    "/sign-in",
+  ],
 };

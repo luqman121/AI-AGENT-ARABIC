@@ -79,6 +79,10 @@ export const runs = pgTable(
       table.projectId,
       table.createdAt,
     ),
+    // Cross-tenant admin operations: status/date filtering and time-window usage aggregation.
+    index("runs_status_created_idx").on(table.status, table.createdAt),
+    index("runs_created_idx").on(table.createdAt),
+    index("runs_created_by_created_idx").on(table.createdByUserId, table.createdAt),
     // At most one active run per project, enforced at the database level.
     uniqueIndex("runs_one_active_per_project")
       .on(table.projectId)

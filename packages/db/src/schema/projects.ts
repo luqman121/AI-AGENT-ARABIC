@@ -30,6 +30,10 @@ export const projects = pgTable(
       table.status,
       table.updatedAt,
     ),
+    // Cross-tenant admin listing by recency, status, and owner.
+    index("projects_created_idx").on(table.createdAt),
+    index("projects_status_created_idx").on(table.status, table.createdAt),
+    index("projects_created_by_idx").on(table.createdByUserId),
     // Trigrams provide script-agnostic substring matching for Arabic project titles.
     index("projects_title_trgm_idx").using("gin", sql`${table.title} gin_trgm_ops`),
     check("projects_title_length_check", sql`char_length(btrim(${table.title})) between 1 and 120`),

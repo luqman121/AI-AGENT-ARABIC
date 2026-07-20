@@ -3,6 +3,7 @@ import type { Redis } from "ioredis";
 
 /** Fixed-window per-user limits for authenticated product mutations. */
 export const RATE_LIMITS = {
+  "admin.action": { limit: 30, windowSeconds: 60 },
   "attachment.upload": { limit: 12, windowSeconds: 60 },
   "conversation.append": { limit: 30, windowSeconds: 60 },
   "project.archive": { limit: 15, windowSeconds: 60 },

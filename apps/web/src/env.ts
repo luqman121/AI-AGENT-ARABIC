@@ -42,6 +42,9 @@ const webEnvSchema = z
       .default("false")
       .transform((value) => value === "true"),
     SMTP_USER: optionalString,
+    // Optional: absolute URL of the worker's /health endpoint. When set, the
+    // admin system view probes it; otherwise worker status reads "unknown".
+    WORKER_HEALTH_URL: optionalString,
   })
   .superRefine((value, ctx) => {
     // Google OAuth is all-or-nothing: a half-configured pair must fail fast

@@ -1,4 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
+  bigint,
+  check,
   index,
   integer,
   pgTable,
@@ -25,9 +28,35 @@ export const users = pgTable(
     // Scrypt-derived hash for email + password sign-in. Null for accounts
     // created through an OAuth provider (e.g. Google), which never have one.
     passwordHash: text("password_hash"),
+    // Platform role (distinct from workspace_members.role which is tenancy-scoped).
+    // Only an authorized admin operation or direct DB provisioning may change it.
+    role: text("role").notNull().default("user"),
+    // Account lifecycle. A suspended account cannot use the product.
+    status: text("status").notNull().default("active"),
+    // Commercial plan; drives default usage allowances.
+    plan: text("plan").notNull().default("free"),
+    // Optional per-account monthly cost cap in integer micros (null = plan default).
+    monthlyCostLimitMicros: bigint("monthly_cost_limit_micros", { mode: "number" }),
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
     ...timestamps,
   },
-  (table) => [uniqueIndex("users_email_unique").on(table.email)],
+  (table) => [
+    uniqueIndex("users_email_unique").on(table.email),
+    index("users_role_idx").on(table.role),
+    index("users_status_idx").on(table.status),
+    index("users_created_at_idx").on(table.createdAt),
+    check("users_role_check", sql`${table.role} in ('user', 'support', 'admin')`),
+    check("users_status_check", sql`${table.status} in ('active', 'suspended')`),
+    check("users_plan_check", sql`${table.plan} in ('free', 'pro', 'business')`),
+    check(
+      "users_cost_limit_check",
+      sql`${table.monthlyCostLimitMicros} is null or ${table.monthlyCostLimitMicros} >= 0`,
+    ),
+    check(
+      "users_suspended_state_check",
+      sql`(${table.status} = 'suspended' and ${table.suspendedAt} is not null) or (${table.status} = 'active' and ${table.suspendedAt} is null)`,
+    ),
+  ],
 );
 
 export const accounts = pgTable(

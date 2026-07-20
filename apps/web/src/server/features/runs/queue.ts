@@ -15,6 +15,22 @@ function getQueue(): Queue<RunJobData> {
   return globalScope.__wakilRunQueue;
 }
 
+/** Live BullMQ counts for the operational system-health view. */
+export async function getRunQueueCounts(): Promise<{
+  waiting: number;
+  active: number;
+  failed: number;
+  delayed: number;
+}> {
+  const counts = await getQueue().getJobCounts("waiting", "active", "failed", "delayed");
+  return {
+    active: counts.active ?? 0,
+    delayed: counts.delayed ?? 0,
+    failed: counts.failed ?? 0,
+    waiting: counts.waiting ?? 0,
+  };
+}
+
 /** Enqueues a job keyed by runId so a duplicate enqueue is deduplicated. */
 export async function enqueueRun(job: RunJobData): Promise<void> {
   await getQueue().add("run", job, {
