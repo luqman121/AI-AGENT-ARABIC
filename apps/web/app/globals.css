@@ -66,6 +66,8 @@
   --font-mono: var(--wk-font-mono);
   --radius-sm: var(--wk-radius-sm);
   --radius-md: var(--wk-radius-md);
+  --radius-lg: var(--wk-radius-lg);
+  --shadow-soft: var(--wk-shadow-soft);
 }
 
 html {

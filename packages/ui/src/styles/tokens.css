@@ -76,11 +76,14 @@
   /* Radius */
   --wk-radius-sm: 6px;
   --wk-radius-md: 8px;
+  --wk-radius-lg: 12px;
   --wk-radius-full: 9999px;
 
   /* Elevation shadows (paired with surfaces via utility classes below) */
   --wk-shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
   --wk-shadow-2: 0 8px 24px rgb(0 0 0 / 0.45);
+  /* Soft, wide premium lift for the delivered-result surface. */
+  --wk-shadow-soft: 0 16px 40px -20px rgb(0 0 0 / 0.6);
 
   /* Z-index scale — the only allowed stacking values */
   --wk-z-nav: 20;

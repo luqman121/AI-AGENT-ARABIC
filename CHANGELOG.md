@@ -26,6 +26,12 @@ All notable changes to Wakil are documented in this file.
   calm completion moment — an animated success mark, a branded cover, and one clear "معاينة النتيجة"
   action with download/share beneath — and made the bottom action show only Cancel while working.
   Added GPU-friendly, reduced-motion-aware motion primitives to the design system.
+- Final craft pass on the working and success screens: tightened the type rhythm to the 16/14/12
+  scale, replaced uniform gaps with optical spacing, and added first-class `radius-lg` and a soft
+  premium shadow to the design tokens. The success card now uses that soft elevation and larger
+  radius, a stylized (honest, non-screenshot) website placeholder, a single prominent "معاينة
+  النتيجة" action, and a de-emphasized rebuild — lighter overall, with the creation-date noise
+  removed. Fixed a clipped nested shadow on the result cover.
 - Updated the Playwright run specs to the new UI and automatic flow. Note: the e2e harness
   configures no sandbox, so the automatic build stops at the sandbox-configuration step there;
   reaching it confirms planning succeeded. Verified `pnpm lint`, `pnpm typecheck`, `pnpm test`,

@@ -123,7 +123,7 @@ export function AgentWorking({
   const hasDetails = streamedText.length > 0 || events.length > 0;
 
   return (
-    <div className="flex flex-col items-center gap-4 py-3 text-center">
+    <div className="flex flex-col items-center py-5 text-center">
       <div className="relative flex size-14 items-center justify-center">
         {active ? (
           <span
@@ -136,21 +136,24 @@ export function AgentWorking({
         </span>
       </div>
 
-      <div className="flex flex-col gap-1" aria-live="polite">
-        <p className="text-[15px] font-bold text-fg">الوكيل يعمل الآن</p>
+      <div className="mt-5 flex flex-col gap-1.5" aria-live="polite">
+        <p className="text-base font-bold leading-6 text-fg">الوكيل يعمل الآن</p>
         <p className="text-sm leading-6 text-fg-2">
           <span key={statusLine} className="wk-timeline-in inline-block">
             {statusLine}
           </span>
         </p>
         {phase.mode === "active" ? (
-          <p className="text-xs text-fg-3">
+          <p className="text-xs tracking-wide text-fg-3">
             المرحلة {toArabicDigits(stageNumber)} من {toArabicDigits(STEPS.length)}
           </p>
         ) : null}
       </div>
 
-      <ol className="flex w-full max-w-xs flex-col gap-2.5 text-start" aria-label="مراحل العمل">
+      <ol
+        className="mt-7 flex w-full max-w-[15rem] flex-col gap-3 text-start"
+        aria-label="مراحل العمل"
+      >
         {STEPS.map((label, index) => {
           const state = stepStateFor(index, phase);
           return (
@@ -181,7 +184,7 @@ export function AgentWorking({
       </ol>
 
       {hasDetails ? (
-        <div className="w-full max-w-xs text-start">
+        <div className="mt-6 w-full max-w-[15rem] text-start">
           <button
             type="button"
             aria-expanded={detailsOpen}

@@ -3,7 +3,6 @@ import { Check, Globe, MonitorPlay, RefreshCw } from "lucide-react";
 import Link from "next/link";
 
 import { ArtifactActions } from "./artifact-actions";
-import { formatDateTimeLabel } from "../../../../src/lib/format-date";
 
 export type ArtifactResultSummary = {
   createdAtIso: string;
@@ -69,50 +68,60 @@ export function ArtifactResultCard({
   }
 
   return (
-    <div className="wk-rise-in flex flex-col gap-4 rounded-md border border-line bg-card p-5">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <span className="wk-check-pop flex size-12 items-center justify-center rounded-full bg-success-subtle text-fg-success">
+    <div className="wk-rise-in flex flex-col gap-5 rounded-lg border border-line bg-card p-5 shadow-soft">
+      <div className="flex flex-col items-center gap-1.5 text-center">
+        <span className="wk-check-pop mb-1 flex size-12 items-center justify-center rounded-full bg-success-subtle text-fg-success">
           <Check aria-hidden className="size-6" />
         </span>
-        <p className="text-lg font-bold text-fg">{title}</p>
+        <p className="text-lg font-bold leading-7 text-fg">{title}</p>
         <p className="text-sm leading-6 text-fg-2">موقعك جاهز للمعاينة والتنزيل.</p>
       </div>
 
-      {/* A branded cover, not a screenshot — a real page thumbnail needs a
-          separate capture step that Wakil does not produce yet. */}
+      {/* A stylized website placeholder, not a real screenshot — a true page
+          thumbnail needs a separate capture step Wakil does not produce yet. */}
       <Link
         href={previewHref}
         aria-label="معاينة النتيجة"
-        className="wk-focus-ring group relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-md border border-line bg-page"
+        className="wk-focus-ring relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-lg border border-line bg-page transition-transform duration-200 ease-out active:scale-[0.99] motion-reduce:active:scale-100"
       >
-        <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 bg-accent-subtle/50 blur-2xl" />
-        <span className="relative flex flex-col items-center gap-2 text-fg-accent">
-          <Globe aria-hidden className="size-9" />
-          <span className="text-xs font-semibold text-fg-2">{kindLabel}</span>
+        <span aria-hidden className="absolute inset-x-0 top-0 h-2/3 bg-accent-subtle/40 blur-2xl" />
+        <span
+          aria-hidden
+          className="relative w-[72%] overflow-hidden rounded-md border border-line-strong bg-raised"
+        >
+          <span className="flex gap-1 border-b border-line px-2.5 py-2">
+            <span className="size-1.5 rounded-full bg-line-strong" />
+            <span className="size-1.5 rounded-full bg-line-strong" />
+            <span className="size-1.5 rounded-full bg-line-strong" />
+          </span>
+          <span className="flex flex-col gap-2 p-3">
+            <span className="block h-1.5 w-2/3 rounded-full bg-accent-subtle" />
+            <span className="block h-1.5 w-full rounded-full bg-overlay" />
+            <span className="block h-1.5 w-4/5 rounded-full bg-overlay" />
+          </span>
         </span>
       </Link>
 
-      <Button asChild>
-        <Link href={previewHref}>
-          <MonitorPlay aria-hidden className="size-5" />
-          معاينة النتيجة
-        </Link>
-      </Button>
+      <div className="flex flex-col gap-3">
+        <Button asChild className="min-h-[52px] text-base">
+          <Link href={previewHref}>
+            <MonitorPlay aria-hidden className="size-5" />
+            معاينة النتيجة
+          </Link>
+        </Button>
 
-      <ArtifactActions artifactId={artifact.id} projectId={projectId} title={title} />
+        <ArtifactActions artifactId={artifact.id} projectId={projectId} title={title} />
 
-      <div className="flex items-center justify-between text-xs text-fg-3">
-        <span>أُنشئ في {formatDateTimeLabel(new Date(artifact.createdAtIso))}</span>
         {onRebuild ? (
           <button
             type="button"
             onClick={onRebuild}
             disabled={rebuilding}
-            className="wk-focus-ring inline-flex min-h-11 items-center gap-1.5 font-semibold text-fg-accent disabled:text-fg-disabled"
+            className="wk-focus-ring mx-auto inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-fg-3 transition-colors duration-150 hover:text-fg-2 disabled:text-fg-disabled"
           >
             <RefreshCw
               aria-hidden
-              className={`size-4 ${rebuilding ? "motion-safe:animate-spin" : ""}`}
+              className={`size-3.5 ${rebuilding ? "motion-safe:animate-spin" : ""}`}
             />
             إعادة الإنشاء
           </button>
