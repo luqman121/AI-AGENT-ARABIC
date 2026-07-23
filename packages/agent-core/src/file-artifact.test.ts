@@ -153,4 +153,26 @@ describe("native file artifact generation", () => {
     expect(review.valid).toBe(true);
     expect(review.blockingErrors).toEqual([]);
   });
+
+  it("blocks Arabic fill-in-later placeholders", () => {
+    const review = reviewGeneratedFileDraft(
+      "pdf",
+      {
+        title: "تقرير أداء المبيعات",
+        summary: "تقرير تنفيذي منظم يعرض مؤشرات الأداء وخطوات التحسين المتاحة للإدارة.",
+        sections: [
+          {
+            heading: "المؤشرات",
+            paragraphs: [
+              "يعرض هذا القسم خلاصة عملية للمؤشرات المتاحة مع توضيح البيانات الناقصة دون اختلاق أرقام.",
+            ],
+            bullets: ["إجمالي المبيعات: أدخل الرقم هنا", "معدل النمو: أضف النسبة هنا"],
+          },
+        ],
+      },
+      true,
+    );
+    expect(review.valid).toBe(false);
+    expect(review.blockingErrors).toContain("المحتوى يحتوي على نص مؤقت أو حقول نموذجية.");
+  });
 });

@@ -256,7 +256,7 @@ export async function generateFileArtifact(
 const ARABIC_LETTER = /[\u0621-\u063A\u0641-\u064A]/gu;
 const LATIN_LETTER = /[A-Za-z]/g;
 const PLACEHOLDER_TEXT =
-  /lorem ipsum|اكتب هنا|نص تجريبي|عنوان (?:رئيسي|القسم|التقرير|المستند|العرض)|ملخص قصير/iu;
+  /lorem ipsum|(?:اكتب|أدخل|ادخل|ضع|أضف|اضف)[^\n.،؛]{0,50}هنا|نص تجريبي|عنوان (?:رئيسي|القسم|التقرير|المستند|العرض)|ملخص قصير/iu;
 
 function draftText(kind: FileArtifactKind, draft: GeneratedFileDraft): string[] {
   if (kind === "spreadsheet") {
