@@ -19,6 +19,10 @@ const redisUrl = z
 
 const webEnvSchema = z
   .object({
+    ALLOW_INSECURE_HTTP_PREVIEW: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     AUTH_GOOGLE_ID: z.string().optional(),
     AUTH_GOOGLE_SECRET: z.string().optional(),
     AUTH_SECRET: z.string().min(32),
@@ -66,7 +70,7 @@ const webEnvSchema = z
     if (value.NODE_ENV === "production") {
       const authUrl = new URL(value.AUTH_URL);
       const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(authUrl.hostname);
-      if (authUrl.protocol !== "https:" && !loopback) {
+      if (authUrl.protocol !== "https:" && !loopback && !value.ALLOW_INSECURE_HTTP_PREVIEW) {
         ctx.addIssue({
           code: "custom",
           message: "HTTPS required in production",

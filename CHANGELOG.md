@@ -17,6 +17,9 @@ All notable changes to Wakil are documented in this file.
   full-width chat and sticky composer instead of compressing desktop panels.
 - Added preview viewport controls for desktop, tablet, and mobile sizes while preserving the
   server-side signed private artifact URL flow and secure sandboxed iframe.
+- Promoted the direct-IP deployment safeguards that were previously server-local patches: an
+  explicit `ALLOW_INSECURE_HTTP_PREVIEW` gate for HTTP previews, a browser-safe UUID fallback for
+  HTTP origins, and a sign-in proxy rule that avoids stale-cookie redirect loops.
 
 ### Internal admin dashboard
 
