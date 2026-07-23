@@ -74,6 +74,7 @@ type ViewProps = {
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
   artifacts: ArtifactResultSummary[];
+  outputKind: string;
   messages: ConversationMessage[];
   projectId: string;
   recentProjects: RecentProjectSummary[];
@@ -86,6 +87,7 @@ export function ConversationView({
   autoStart,
   initialEvents,
   initialRun,
+  outputKind,
   messages,
   projectId,
   recentProjects,
@@ -474,6 +476,7 @@ export function ConversationView({
               initialEvents={initialEvents}
               initialRun={initialRun}
               artifacts={artifacts}
+              outputKind={outputKind}
               projectId={projectId}
               projectTitle={title}
             />

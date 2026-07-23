@@ -22,6 +22,14 @@ export type MutationDeps = {
   redis: Redis;
 };
 
+const EXECUTABLE_OUTPUT_KINDS = new Set([
+  "static_site",
+  "pdf",
+  "document",
+  "spreadsheet",
+  "presentation",
+]);
+
 /** Thrown inside a transaction to roll everything back with a typed result. */
 class ServiceFailure extends Error {
   constructor(readonly result: ActionFailure) {
@@ -66,6 +74,11 @@ export async function createProject(
   const parsed = createProjectInputSchema.safeParse(rawInput);
   if (!parsed.success) return failure("VALIDATION_FAILED", zodFieldErrors(parsed.error));
   const input = parsed.data;
+  if (!EXECUTABLE_OUTPUT_KINDS.has(input.outputKind)) {
+    return failure("VALIDATION_FAILED", {
+      outputKind: "نوع النتيجة المطلوب غير متاح للتنفيذ حاليًا.",
+    });
+  }
   const title = input.title ?? deriveProjectTitle(input.request);
 
   const limited = await enforceRateLimit(deps.redis, ctx.userId, "project.create");

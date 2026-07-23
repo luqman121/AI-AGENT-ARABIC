@@ -13,6 +13,7 @@ import {
 } from "../../../../../src/server/features/artifacts/queries";
 import { getArtifactStore } from "../../../../../src/server/features/artifacts/store";
 import { getProjectById } from "../../../../../src/server/features/projects/queries";
+import { artifactPresentation } from "../../../../../src/product/artifact-presentations";
 import { BackToProjectButton } from "./back-button";
 import { PreviewExperience } from "./preview-experience";
 
@@ -59,6 +60,7 @@ export default async function ProjectPreviewPage({
   }
 
   const artifactStore = getArtifactStore();
+  const presentation = artifactPresentation(artifact.kind);
   const previewUrl = await artifactStore.signPreview(artifact.previewObjectKey, 300);
   if (new URL(previewUrl).origin === new URL(getWebEnv().AUTH_URL).origin) {
     throw new Error("Artifact preview origin must differ from the application origin");
@@ -72,7 +74,7 @@ export default async function ProjectPreviewPage({
       />
       <PageShell className="max-w-none">
         <StatusBanner className="mb-4" tone="info">
-          اجتازت النتيجة التحقق المعزول. المعاينة خاصة ومؤقتة، والتنزيل يمر عبر صلاحيات المشروع.
+          اكتمل إنشاء {presentation.label}. المعاينة خاصة ومؤقتة، والتنزيل يمر عبر صلاحيات المشروع.
         </StatusBanner>
         <PreviewExperience
           artifactId={artifact.id}
@@ -85,12 +87,12 @@ export default async function ProjectPreviewPage({
           <Button asChild>
             <a href={`/api/projects/${projectId}/artifacts/${artifact.id}/download`} rel="nofollow">
               <Download aria-hidden className="size-5" />
-              تنزيل ملف ZIP
+              تنزيل {presentation.label}
             </a>
           </Button>
         </div>
         <p className="mt-3 text-xs leading-5 text-fg-3" dir="ltr">
-          {(artifact.downloadSizeBytes / 1024).toFixed(1)} KB · ZIP
+          {(artifact.downloadSizeBytes / 1024).toFixed(1)} KB · {artifact.fileName}
         </p>
       </PageShell>
     </>

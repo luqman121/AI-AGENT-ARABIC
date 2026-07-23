@@ -5,6 +5,7 @@ export const ALLOWED_ATTACHMENT_TYPES = new Set([
   "application/pdf",
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "audio/mp4",
   "audio/mpeg",
@@ -14,6 +15,7 @@ export const ALLOWED_ATTACHMENT_TYPES = new Set([
   "image/png",
   "image/webp",
   "text/plain",
+  "text/csv",
 ]);
 
 function startsWith(bytes: Uint8Array, signature: number[], offset = 0) {
@@ -53,11 +55,13 @@ function hasValidSignature(mediaType: string, bytes: Uint8Array) {
       return startsWith(bytes, [0x66, 0x74, 0x79, 0x70], 4);
     case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+    case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
       return isZip(bytes);
     case "application/msword":
     case "application/vnd.ms-excel":
       return startsWith(bytes, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
     case "text/plain":
+    case "text/csv":
       return !bytes.slice(0, 4096).includes(0);
     default:
       return false;

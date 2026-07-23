@@ -61,6 +61,7 @@ export default async function ProjectConversationPage({
         role: message.role,
       }))}
       projectId={conversation.project.id}
+      outputKind={conversation.project.outputKind}
       recentProjects={recentProjects
         .filter((project) => project.id !== conversation.project.id)
         .slice(0, 6)

@@ -4,6 +4,7 @@ import {
   runEventPayloadSchema,
   type RunEventPayload,
   type RunKind,
+  type OutputKind,
   type RunStatus,
 } from "@wakil/shared";
 import { Button, StatusBanner } from "@wakil/ui";
@@ -33,6 +34,7 @@ export type RunPanelProps = {
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
   artifacts: ArtifactResultSummary[];
+  outputKind: string;
   projectId: string;
   projectTitle: string;
 };
@@ -43,6 +45,7 @@ export function RunPanel({
   autoStart,
   initialEvents,
   initialRun,
+  outputKind,
   projectId,
   projectTitle,
 }: RunPanelProps) {
@@ -60,6 +63,13 @@ export function RunPanel({
   const autoStartedRef = useRef(false);
 
   const runId = run?.id;
+  const executionLabel: Partial<Record<OutputKind, string>> = {
+    document: "ابدأ إنشاء المستند",
+    pdf: "ابدأ إنشاء PDF",
+    presentation: "ابدأ إنشاء العرض",
+    spreadsheet: "ابدأ إنشاء Excel",
+    static_site: "ابدأ إنشاء الموقع",
+  };
   const isActive = run !== null && ACTIVE_STATUSES.has(run.status);
   const cancelRequested = Boolean(run?.cancelRequestedAtIso);
   const nextKind: RunKind =
@@ -302,7 +312,7 @@ export function RunPanel({
         </Button>
       ) : planReady ? (
         <Button className="w-full" onClick={start} loading={pending}>
-          ابدأ إنشاء الموقع
+          {executionLabel[outputKind as OutputKind] ?? "ابدأ التنفيذ"}
         </Button>
       ) : isFailed ? (
         <Button className="w-full" onClick={start} loading={pending}>

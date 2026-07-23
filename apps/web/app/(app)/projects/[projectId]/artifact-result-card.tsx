@@ -29,6 +29,7 @@ const RESULT_ICONS = {
   document: FileText,
   file: FileArchive,
   image: FileImage,
+  pdf: FileText,
   presentation: Presentation,
   spreadsheet: FileSpreadsheet,
   static_site: Globe,

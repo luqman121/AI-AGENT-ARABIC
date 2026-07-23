@@ -28,6 +28,21 @@ describe("attachment validation", () => {
     expect(result).toEqual({ message: "نوع الملف غير مدعوم", ok: false });
   });
 
+  it("accepts presentation and CSV inputs used by document analysis", async () => {
+    const presentation = await validateAttachment(
+      binaryFile(
+        [0x50, 0x4b, 0x03, 0x04, 0x00],
+        "عرض.pptx",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      ),
+    );
+    const csv = await validateAttachment(
+      new File(["المنتج,الإيراد\nعطر,120"], "مبيعات.csv", { type: "text/csv" }),
+    );
+    expect(presentation.ok).toBe(true);
+    expect(csv.ok).toBe(true);
+  });
+
   it("sanitizes control characters and path separators in names", async () => {
     const result = await validateAttachment(
       binaryFile(

@@ -23,10 +23,14 @@ describe("Arabic output capabilities", () => {
     );
   });
 
-  it("enables only the real static website generator", () => {
+  it("enables only output kinds with complete worker generators", () => {
     const enabled = OUTPUT_CAPABILITIES.filter((capability) => capability.enabled);
-    expect(enabled).toEqual([
-      expect.objectContaining({ id: "website", outputKind: "static_site" }),
+    expect(enabled.map((capability) => capability.outputKind)).toEqual([
+      "static_site",
+      "pdf",
+      "spreadsheet",
+      "presentation",
+      "document",
     ]);
     expect(
       OUTPUT_CAPABILITIES.filter((capability) => !capability.enabled).every(
@@ -50,15 +54,18 @@ describe("Arabic product messages and feature boundaries", () => {
     expect(productFeatureFlags.visualEditing).toBe(false);
   });
 
-  it("shows preview actions only for the artifact kind supported by the current backend", () => {
+  it("shows preview actions for generated artifacts with safe HTML previews", () => {
     expect(artifactPresentation("static_site")).toMatchObject({
       label: "موقع ويب",
       previewable: true,
     });
     expect(artifactPresentation("pdf")).toMatchObject({
-      kind: "file",
-      previewable: false,
+      kind: "pdf",
+      previewable: true,
     });
+    expect(artifactPresentation("spreadsheet").previewable).toBe(true);
+    expect(artifactPresentation("presentation").previewable).toBe(true);
+    expect(artifactPresentation("document").previewable).toBe(true);
     expect(artifactPresentation("audio").readyCopy).toContain("الصوتي");
   });
 });

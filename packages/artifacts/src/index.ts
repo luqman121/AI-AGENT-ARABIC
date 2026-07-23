@@ -26,6 +26,12 @@ export type ArtifactBytes = {
   sizeBytes: number;
 };
 
+type GeneratedFileUpload = {
+  download: ArtifactBytes;
+  fileName: string;
+  preview: ArtifactBytes;
+};
+
 export type ArtifactStoreConfig = {
   accessKeyId: string;
   bucket: string;
@@ -144,6 +150,7 @@ export function buildStaticSiteBundle(html: string): ArtifactBundle {
 
 export function artifactObjectKeys(input: {
   artifactId: string;
+  downloadExtension?: string;
   projectId: string;
   runId: string;
   workspaceId: string;
@@ -153,7 +160,9 @@ export function artifactObjectKeys(input: {
   const runId = objectKeyPartSchema.parse(input.runId);
   const artifactId = objectKeyPartSchema.parse(input.artifactId);
   const prefix = `workspaces/${workspaceId}/projects/${projectId}/runs/${runId}/${artifactId}`;
-  return { previewKey: `${prefix}/preview.html`, zipKey: `${prefix}/artifact.zip` };
+  const extension = (input.downloadExtension ?? "zip").replace(/[^a-z0-9]/gi, "").toLowerCase();
+  if (!extension) throw new Error("Invalid artifact extension");
+  return { previewKey: `${prefix}/preview.html`, zipKey: `${prefix}/artifact.${extension}` };
 }
 
 export class S3ArtifactStore {
@@ -188,6 +197,15 @@ export class S3ArtifactStore {
     await this.#put(keys.zipKey, bundle.zip, 'attachment; filename="wakil-site.zip"');
   }
 
+  async uploadGeneratedFile(keys: ArtifactObjectKeys, bundle: GeneratedFileUpload): Promise<void> {
+    await this.#put(keys.previewKey, bundle.preview, "inline");
+    await this.#put(
+      keys.zipKey,
+      bundle.download,
+      `attachment; filename="${bundle.fileName.replace(/["\\\r\n]/g, "_")}"`,
+    );
+  }
+
   /** Uploads a private non-artifact input such as a user file or voice note. */
   async uploadPrivateObject(input: {
     bytes: Uint8Array;
@@ -211,6 +229,20 @@ export class S3ArtifactStore {
   /** Removes a private input when its database record cannot be committed. */
   async deletePrivateObject(key: string): Promise<void> {
     await this.#client.send(new DeleteObjectCommand({ Bucket: this.#bucket, Key: key }));
+  }
+
+  async readPrivateObject(key: string, maxBytes = 10 * 1024 * 1024): Promise<Uint8Array> {
+    const object = await this.#client.send(
+      new GetObjectCommand({ Bucket: this.#bucket, Key: key }),
+    );
+    if (object.ContentLength !== undefined && object.ContentLength > maxBytes) {
+      throw new Error("Private object exceeds read limit");
+    }
+    const bytes = await object.Body?.transformToByteArray();
+    if (!bytes || bytes.byteLength < 1 || bytes.byteLength > maxBytes) {
+      throw new Error("Private object is unavailable or exceeds read limit");
+    }
+    return bytes;
   }
 
   async signPrivateObject(
@@ -359,10 +391,18 @@ export class S3ArtifactStore {
     });
   }
 
-  async signDownload(key: string, expiresInSeconds = 300): Promise<string> {
-    return this.#signObject(key, expiresInSeconds, {
-      disposition: 'attachment; filename="wakil-site.zip"',
+  async signDownload(
+    key: string,
+    expiresInSeconds = 300,
+    response: { fileName: string; mediaType: string } = {
+      fileName: "wakil-site.zip",
       mediaType: "application/zip",
+    },
+  ): Promise<string> {
+    const fileName = response.fileName.replace(/["\\\r\n]/g, "_");
+    return this.#signObject(key, expiresInSeconds, {
+      disposition: `attachment; filename="${fileName}"`,
+      mediaType: response.mediaType,
     });
   }
 

@@ -1,4 +1,5 @@
 import {
+  generateFileArtifact,
   generatePlanningTurn,
   generateStaticSite,
   type PlanningLimits,
@@ -10,21 +11,39 @@ import {
   type ArtifactBundle,
   type ArtifactObjectKeys,
 } from "@wakil/artifacts";
+import {
+  buildGeneratedFileBundle,
+  extractAttachmentText,
+  type GeneratedFileBundle,
+} from "@wakil/artifacts/file-artifacts";
 import type { createDatabaseClient } from "@wakil/db/client";
-import { artifacts, conversationMessages, runs } from "@wakil/db/schema";
+import {
+  artifacts,
+  conversationMessages,
+  messageAttachments,
+  projects,
+  runs,
+} from "@wakil/db/schema";
 import type { ModelProviderAdapter } from "@wakil/model-router";
 import { SandboxError, type SandboxAdapter, type SandboxLimits } from "@wakil/sandbox";
 import {
   runEventLabel,
+  type OutputKind,
   type RunEventPayload,
   type RunEventType,
   type RunJobData,
   type RunStatus,
 } from "@wakil/shared";
-import { PLANNING_PROMPT_VERSION, STATIC_SITE_PROMPT_VERSION } from "@wakil/skills";
+import {
+  FILE_ARTIFACT_PROMPT_VERSION,
+  PLANNING_PROMPT_VERSION,
+  STATIC_SITE_PROMPT_VERSION,
+  type FileArtifactKind,
+} from "@wakil/skills";
 import { and, desc, eq } from "drizzle-orm";
 import type { Redis } from "ioredis";
 import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 
 import { appendRunEvent, publishRunEvent, type AppendRunEventInput } from "./events.js";
 
@@ -32,7 +51,9 @@ type Database = ReturnType<typeof createDatabaseClient>["db"];
 
 type ExecutionDeps = {
   artifactStore: {
+    readPrivateObject(key: string, maxBytes?: number): Promise<Uint8Array>;
     uploadBundle(keys: ArtifactObjectKeys, bundle: ArtifactBundle): Promise<void>;
+    uploadGeneratedFile(keys: ArtifactObjectKeys, bundle: GeneratedFileBundle): Promise<void>;
   };
   generationLimits: StaticSiteGenerationLimits;
   maxZipBytes: number;
@@ -93,6 +114,64 @@ function failureErrorCode(code: string): string {
   return codes[code] ?? "INTERNAL_ERROR";
 }
 
+const FILE_OUTPUT_KINDS = new Set<OutputKind>(["pdf", "document", "spreadsheet", "presentation"]);
+
+const FILE_EXTENSIONS: Record<FileArtifactKind, string> = {
+  pdf: "pdf",
+  document: "docx",
+  spreadsheet: "xlsx",
+  presentation: "pptx",
+};
+
+const ANALYZABLE_MEDIA_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/csv",
+  "text/plain",
+]);
+
+async function sourceContextForMessage(
+  deps: ProcessorDeps,
+  job: RunJobData,
+  messageId: string,
+): Promise<string> {
+  const execution = deps.execution;
+  if (!execution) return "";
+  const rows = await deps.db
+    .select({
+      checksumSha256: messageAttachments.checksumSha256,
+      mediaType: messageAttachments.mediaType,
+      objectKey: messageAttachments.objectKey,
+      originalName: messageAttachments.originalName,
+    })
+    .from(messageAttachments)
+    .where(
+      and(
+        eq(messageAttachments.workspaceId, job.workspaceId),
+        eq(messageAttachments.projectId, job.projectId),
+        eq(messageAttachments.messageId, messageId),
+        eq(messageAttachments.status, "ready"),
+      ),
+    )
+    .limit(6);
+  const parts: string[] = [];
+  for (const row of rows) {
+    if (!ANALYZABLE_MEDIA_TYPES.has(row.mediaType)) continue;
+    const bytes = await execution.artifactStore.readPrivateObject(row.objectKey);
+    const checksum = createHash("sha256").update(bytes).digest("hex");
+    if (checksum !== row.checksumSha256) throw new Error("Attachment checksum mismatch");
+    const text = await extractAttachmentText({
+      bytes,
+      mediaType: row.mediaType,
+      name: row.originalName,
+    });
+    if (text) parts.push(`[الملف: ${row.originalName}]\n${text}`);
+  }
+  return parts.join("\n\n").slice(0, 48_000);
+}
+
 /** Executes one bounded planning or artifact run and returns its terminal status. */
 export async function processRun(deps: ProcessorDeps, job: RunJobData): Promise<RunStatus> {
   const claimed = (
@@ -129,6 +208,7 @@ export async function processRun(deps: ProcessorDeps, job: RunJobData): Promise<
         .select({
           content: conversationMessages.content,
           createdAt: conversationMessages.createdAt,
+          id: conversationMessages.id,
         })
         .from(conversationMessages)
         .where(
@@ -143,10 +223,36 @@ export async function processRun(deps: ProcessorDeps, job: RunJobData): Promise<
     )[0];
 
     if (!request) return finalizeFailure(deps, job, 0, "NOT_FOUND");
+    const project = (
+      await deps.db
+        .select({ outputKind: projects.outputKind })
+        .from(projects)
+        .where(and(eq(projects.id, job.projectId), eq(projects.workspaceId, job.workspaceId)))
+        .limit(1)
+    )[0];
+    if (!project) return finalizeFailure(deps, job, 0, "NOT_FOUND");
+    const outputKind = project.outputKind as OutputKind;
+    const sourceContext = FILE_OUTPUT_KINDS.has(outputKind)
+      ? await sourceContextForMessage(deps, job, request.id)
+      : "";
     if (claimed.kind === "execution") {
-      return processExecutionRun(deps, job, claimed.parentRunId, request);
+      return processExecutionRun(
+        deps,
+        job,
+        claimed.parentRunId,
+        request,
+        outputKind,
+        sourceContext,
+      );
     }
-    return processPlanningRun(deps, job, claimed.conversationId, request.content);
+    return processPlanningRun(
+      deps,
+      job,
+      claimed.conversationId,
+      request.content,
+      outputKind,
+      sourceContext,
+    );
   } catch {
     return finalizeFailure(deps, job, 0, "INTERNAL_ERROR");
   }
@@ -157,6 +263,8 @@ async function processPlanningRun(
   job: RunJobData,
   conversationId: string,
   userRequest: string,
+  outputKind: OutputKind,
+  sourceContext: string,
 ): Promise<RunStatus> {
   await emit(deps, { runId: job.runId, workspaceId: job.workspaceId, type: "agent.started" });
   const result = await generatePlanningTurn({
@@ -164,6 +272,7 @@ async function processPlanningRun(
     isCancelled: () => isCancelRequested(deps, job.runId),
     limits: deps.limits,
     model: deps.model,
+    outputKind,
     onDelta: (textDelta) =>
       emit(deps, {
         runId: job.runId,
@@ -171,6 +280,7 @@ async function processPlanningRun(
         type: "assistant.delta",
         workspaceId: job.workspaceId,
       }),
+    ...(sourceContext ? { sourceContext } : {}),
     userRequest,
   });
 
@@ -235,17 +345,15 @@ async function processExecutionRun(
   job: RunJobData,
   parentRunId: string | null,
   request: { content: string; createdAt: Date },
+  outputKind: OutputKind,
+  sourceContext: string,
 ): Promise<RunStatus> {
   const execution = deps.execution;
-  if (!execution || !execution.sandbox || !parentRunId) {
-    return finalizeFailure(
-      deps,
-      job,
-      0,
-      "SANDBOX_CONFIGURATION_ERROR",
-      "failed",
-      STATIC_SITE_PROMPT_VERSION,
-    );
+  const promptVersion = FILE_OUTPUT_KINDS.has(outputKind)
+    ? FILE_ARTIFACT_PROMPT_VERSION
+    : STATIC_SITE_PROMPT_VERSION;
+  if (!execution || !parentRunId) {
+    return finalizeFailure(deps, job, 0, "EXECUTION_CONFIGURATION_ERROR", "failed", promptVersion);
   }
 
   const plan = (
@@ -271,11 +379,27 @@ async function processExecutionRun(
       .limit(1)
   )[0];
   if (!plan || request.createdAt > plan.createdAt) {
+    return finalizeFailure(deps, job, 0, "EXECUTION_PLAN_STALE", "failed", promptVersion);
+  }
+
+  if (FILE_OUTPUT_KINDS.has(outputKind)) {
+    return processFileExecutionRun(
+      deps,
+      job,
+      execution,
+      outputKind as FileArtifactKind,
+      request.content,
+      plan.content,
+      sourceContext,
+    );
+  }
+
+  if (outputKind !== "static_site" || !execution.sandbox) {
     return finalizeFailure(
       deps,
       job,
       0,
-      "EXECUTION_PLAN_STALE",
+      "OUTPUT_KIND_UNSUPPORTED",
       "failed",
       STATIC_SITE_PROMPT_VERSION,
     );
@@ -452,6 +576,167 @@ async function processExecutionRun(
         sandboxProvider: sandboxResult.provider,
         status: "succeeded",
         stepCount: 7,
+      })
+      .where(eq(runs.id, job.runId));
+
+    return terminalEvents(tx, job, "artifact.ready", artifactId);
+  });
+  for (const event of events) await publishRunEvent(deps.redis, job.runId, event);
+  return "succeeded";
+}
+
+async function processFileExecutionRun(
+  deps: ProcessorDeps,
+  job: RunJobData,
+  execution: ExecutionDeps,
+  kind: FileArtifactKind,
+  userRequest: string,
+  reviewedPlan: string,
+  sourceContext: string,
+): Promise<RunStatus> {
+  await emit(deps, {
+    runId: job.runId,
+    workspaceId: job.workspaceId,
+    type: "artifact.generating",
+  });
+  const generated = await generateFileArtifact({
+    adapter: deps.adapter,
+    isCancelled: () => isCancelRequested(deps, job.runId),
+    kind,
+    limits: execution.generationLimits,
+    model: deps.model,
+    reviewedPlan,
+    ...(sourceContext ? { sourceContext } : {}),
+    userRequest,
+  });
+  if (!generated.ok) {
+    if (generated.code === "cancelled") {
+      return finalizeFailure(
+        deps,
+        job,
+        generated.attempts,
+        null,
+        "cancelled",
+        FILE_ARTIFACT_PROMPT_VERSION,
+      );
+    }
+    return finalizeFailure(
+      deps,
+      job,
+      generated.attempts,
+      failureErrorCode(generated.code),
+      "failed",
+      FILE_ARTIFACT_PROMPT_VERSION,
+    );
+  }
+
+  let bundle: GeneratedFileBundle;
+  try {
+    bundle = await buildGeneratedFileBundle(kind, generated.draft);
+  } catch {
+    return finalizeFailure(
+      deps,
+      job,
+      generated.attempts,
+      "ARTIFACT_GENERATION_ERROR",
+      "failed",
+      FILE_ARTIFACT_PROMPT_VERSION,
+    );
+  }
+  if (bundle.preview.sizeBytes > 500_000 || bundle.download.sizeBytes > execution.maxZipBytes) {
+    return finalizeFailure(
+      deps,
+      job,
+      generated.attempts,
+      "ARTIFACT_TOO_LARGE",
+      "failed",
+      FILE_ARTIFACT_PROMPT_VERSION,
+    );
+  }
+  if (await isCancelRequested(deps, job.runId)) {
+    return finalizeFailure(
+      deps,
+      job,
+      generated.attempts,
+      null,
+      "cancelled",
+      FILE_ARTIFACT_PROMPT_VERSION,
+    );
+  }
+
+  const artifactId = randomUUID();
+  const keys = artifactObjectKeys({
+    artifactId,
+    downloadExtension: FILE_EXTENSIONS[kind],
+    ...job,
+  });
+  await emit(deps, {
+    runId: job.runId,
+    workspaceId: job.workspaceId,
+    type: "artifact.uploading",
+  });
+  try {
+    await execution.artifactStore.uploadGeneratedFile(keys, bundle);
+  } catch {
+    return finalizeFailure(
+      deps,
+      job,
+      generated.attempts,
+      "STORAGE_UNAVAILABLE",
+      "failed",
+      FILE_ARTIFACT_PROMPT_VERSION,
+    );
+  }
+
+  const events = await deps.db.transaction(async (tx) => {
+    await tx.insert(artifacts).values({
+      downloadChecksumSha256: bundle.download.checksumSha256,
+      downloadMediaType: bundle.download.mediaType,
+      downloadObjectKey: keys.zipKey,
+      downloadSizeBytes: bundle.download.sizeBytes,
+      fileName: bundle.fileName,
+      id: artifactId,
+      kind,
+      previewChecksumSha256: bundle.preview.checksumSha256,
+      previewMediaType: bundle.preview.mediaType,
+      previewObjectKey: keys.previewKey,
+      previewSizeBytes: bundle.preview.sizeBytes,
+      projectId: job.projectId,
+      runId: job.runId,
+      title: bundle.title,
+      workspaceId: job.workspaceId,
+    });
+    const conversation = (
+      await tx.select({ id: runs.conversationId }).from(runs).where(eq(runs.id, job.runId))
+    )[0];
+    if (!conversation) throw new Error("run conversation missing");
+    const message = (
+      await tx
+        .insert(conversationMessages)
+        .values({
+          content: bundle.summary,
+          conversationId: conversation.id,
+          role: "assistant",
+          workspaceId: job.workspaceId,
+        })
+        .returning({ id: conversationMessages.id })
+    )[0];
+    if (!message) throw new Error("assistant message insert returned no row");
+
+    await tx
+      .update(runs)
+      .set({
+        assistantMessageId: message.id,
+        completionTokens: generated.usage.outputTokens,
+        errorCode: null,
+        finishedAt: new Date(),
+        modelConfigKey: deps.modelConfigKey,
+        promptTokens: generated.usage.inputTokens,
+        promptVersion: FILE_ARTIFACT_PROMPT_VERSION,
+        providerAttempts: generated.attempts,
+        providerCostMicros: generated.usage.costMicros,
+        status: "succeeded",
+        stepCount: 5,
       })
       .where(eq(runs.id, job.runId));
 

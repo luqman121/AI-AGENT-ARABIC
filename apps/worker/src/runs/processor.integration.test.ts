@@ -151,12 +151,16 @@ it("keeps a completed plan reviewable, then executes an explicitly started run",
       ...modelDeps,
       execution: {
         artifactStore: {
+          async readPrivateObject() {
+            return new Uint8Array();
+          },
           async uploadBundle(_keys, bundle) {
             uploaded.push({
               previewSize: bundle.preview.sizeBytes,
               zipSize: bundle.zip.sizeBytes,
             });
           },
+          async uploadGeneratedFile() {},
         },
         generationLimits: {
           deadlineMs: 1_000,

@@ -6,6 +6,7 @@ export type ArtifactPresentation = {
     | "document"
     | "file"
     | "image"
+    | "pdf"
     | "presentation"
     | "spreadsheet"
     | "static_site"
@@ -26,7 +27,7 @@ const ARTIFACT_PRESENTATIONS: Record<
   },
   document: {
     label: "مستند",
-    previewable: false,
+    previewable: true,
     readyCopy: arMessages.artifact.readyByKind.document,
   },
   file: {
@@ -39,14 +40,19 @@ const ARTIFACT_PRESENTATIONS: Record<
     previewable: false,
     readyCopy: arMessages.artifact.readyByKind.image,
   },
+  pdf: {
+    label: "PDF",
+    previewable: true,
+    readyCopy: "أصبح ملف PDF جاهزًا للمعاينة والتنزيل.",
+  },
   presentation: {
     label: "عرض تقديمي",
-    previewable: false,
+    previewable: true,
     readyCopy: arMessages.artifact.readyByKind.presentation,
   },
   spreadsheet: {
     label: "جدول بيانات",
-    previewable: false,
+    previewable: true,
     readyCopy: arMessages.artifact.readyByKind.spreadsheet,
   },
   static_site: {

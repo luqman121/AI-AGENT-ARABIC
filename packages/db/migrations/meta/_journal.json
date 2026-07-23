@@ -64,6 +64,20 @@
       "when": 1784572097639,
       "tag": "0008_thankful_mentor",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784806761186,
+      "tag": "0009_legal_william_stryker",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784808085551,
+      "tag": "0010_nostalgic_supernaut",
+      "breakpoints": true
     }
   ]
 }

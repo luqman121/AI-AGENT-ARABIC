@@ -13,6 +13,7 @@ import {
   Globe,
   Image as ImageIcon,
   MoreHorizontal,
+  ScanText,
   Smartphone,
   Volume2,
 } from "lucide-react";
@@ -44,17 +45,18 @@ const CAPABILITY_ICONS = {
   website: Globe,
 } as const;
 
-const CREATION_TYPES: ArtifactTypeOption[] = OUTPUT_CAPABILITIES.map((capability) => ({
-  disabled: !capability.enabled,
-  disabledReason: capability.disabledReason,
-  icon: CAPABILITY_ICONS[capability.id],
-  id: capability.id,
-  label: capability.label,
-}));
+const CREATION_TYPES: ArtifactTypeOption[] = [
+  ...OUTPUT_CAPABILITIES.filter((capability) => capability.enabled).map((capability) => ({
+    icon: CAPABILITY_ICONS[capability.id],
+    id: capability.id,
+    label: capability.label,
+  })),
+  { icon: ScanText, id: "analyze-document", label: "تحليل مستند" },
+];
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ALLOWED_ATTACHMENT =
-  /^(image\/(jpeg|png|webp)|audio\/(webm|mpeg|wav|mp4)|application\/pdf|text\/plain|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|vnd\.ms-excel))$/;
+  /^(image\/(jpeg|png|webp)|audio\/(webm|mpeg|wav|mp4)|application\/pdf|text\/(plain|csv)|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel))$/;
 
 export function CreateProjectForm() {
   const router = useRouter();
@@ -66,7 +68,9 @@ export function CreateProjectForm() {
   const [attachments, setAttachments] = useState<DraftAttachment[]>([]);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const attachmentUrlsRef = useRef(new Set<string>());
-  const selected = outputCapabilityById(artifactType);
+  const selected = outputCapabilityById(
+    artifactType === "analyze-document" ? "document" : artifactType,
+  );
 
   useEffect(() => {
     const saved = window.sessionStorage.getItem("wakil:new-project-draft");
@@ -220,6 +224,7 @@ export function CreateProjectForm() {
   return (
     <div className="flex flex-col gap-3">
       <ArtifactTypeScroller
+        layout="grid"
         options={CREATION_TYPES}
         selectedId={artifactType}
         onSelect={(id) => {
@@ -231,7 +236,11 @@ export function CreateProjectForm() {
         attachmentAccept={selected.accept}
         attachments={attachments}
         label={arMessages.home.composerLabel}
-        placeholder={selected.placeholder}
+        placeholder={
+          artifactType === "analyze-document"
+            ? "أرفق PDF أو Word أو Excel أو PowerPoint، ثم اكتب ما الذي تريد تحليله…"
+            : selected.placeholder
+        }
         value={request}
         onValueChange={(value) => {
           setRequest(value);
