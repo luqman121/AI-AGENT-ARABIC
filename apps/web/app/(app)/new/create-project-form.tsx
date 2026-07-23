@@ -224,7 +224,6 @@ export function CreateProjectForm() {
   return (
     <div className="flex flex-col gap-3">
       <ArtifactTypeScroller
-        layout="grid"
         options={CREATION_TYPES}
         selectedId={artifactType}
         onSelect={(id) => {
