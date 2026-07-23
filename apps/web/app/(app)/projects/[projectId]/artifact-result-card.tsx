@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import { arMessages } from "../../../../src/product/messages.ar";
+import { artifactPresentation } from "../../../../src/product/artifact-presentations";
 import { ArtifactActions } from "./artifact-actions";
 
 export type ArtifactResultSummary = {
@@ -24,27 +24,16 @@ export type ArtifactResultSummary = {
   kind: string;
 };
 
-const RESULT_PRESENTATIONS = {
-  audio: { icon: AudioLines, label: "ملف صوتي", previewable: false },
-  document: { icon: FileText, label: "مستند", previewable: false },
-  file: { icon: FileArchive, label: "ملف", previewable: false },
-  image: { icon: FileImage, label: "صورة", previewable: false },
-  presentation: { icon: Presentation, label: "عرض تقديمي", previewable: false },
-  spreadsheet: { icon: FileSpreadsheet, label: "جدول بيانات", previewable: false },
-  static_site: { icon: Globe, label: "موقع ويب", previewable: true },
-  web_app: { icon: PanelsTopLeft, label: "تطبيق ويب", previewable: false },
+const RESULT_ICONS = {
+  audio: AudioLines,
+  document: FileText,
+  file: FileArchive,
+  image: FileImage,
+  presentation: Presentation,
+  spreadsheet: FileSpreadsheet,
+  static_site: Globe,
+  web_app: PanelsTopLeft,
 } as const;
-
-type KnownArtifactKind = keyof typeof RESULT_PRESENTATIONS;
-
-export function artifactPresentation(kind: string) {
-  const knownKind: KnownArtifactKind =
-    kind in RESULT_PRESENTATIONS ? (kind as KnownArtifactKind) : "file";
-  return {
-    ...RESULT_PRESENTATIONS[knownKind],
-    readyCopy: arMessages.artifact.readyByKind[knownKind],
-  };
-}
 
 export type ArtifactResultCardProps = {
   artifact: ArtifactResultSummary;
@@ -72,7 +61,7 @@ export function ArtifactResultCard({
 }: ArtifactResultCardProps) {
   const sizeLabel = (artifact.downloadSizeBytes / 1024).toFixed(1);
   const presentation = artifactPresentation(artifact.kind);
-  const ResultIcon = presentation.icon;
+  const ResultIcon = RESULT_ICONS[presentation.kind];
   const previewHref = `/projects/${projectId}/preview?artifact=${artifact.id}`;
 
   if (!primary) {

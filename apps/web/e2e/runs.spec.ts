@@ -229,6 +229,12 @@ test("private artifact preview and download @visual", async ({ page }, testInfo:
   await page.goto(`/projects/${projectId}/preview`);
   await expect(page.getByText("اجتازت النتيجة التحقق المعزول.", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: "تنزيل ملف ZIP" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "تحديث المعاينة" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "نسخ رابط المعاينة" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ملء الشاشة" })).toBeVisible();
+  await page.getByRole("button", { name: "هاتف" }).click();
+  await expect(page).toHaveURL(/viewport=mobile/);
+  await expect(page.locator("div.w-\\[390px\\]")).toBeVisible();
   await expect(page.locator("iframe")).toHaveAttribute("sandbox", "allow-scripts");
   await expect(
     page.locator("iframe").contentFrame().getByRole("heading", { name: "مقهى مسقط" }),
