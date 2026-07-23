@@ -1,15 +1,6 @@
 import { projectIdSchema } from "@wakil/shared";
 import { Button, AppHeader, EmptyState, PageShell, StatusBanner } from "@wakil/ui";
-import {
-  Download,
-  ExternalLink,
-  Monitor,
-  MonitorPlay,
-  RefreshCw,
-  Smartphone,
-  Tablet,
-} from "lucide-react";
-import Link from "next/link";
+import { Download, MonitorPlay } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -23,6 +14,7 @@ import {
 import { getArtifactStore } from "../../../../../src/server/features/artifacts/store";
 import { getProjectById } from "../../../../../src/server/features/projects/queries";
 import { BackToProjectButton } from "./back-button";
+import { PreviewExperience } from "./preview-experience";
 
 export const metadata: Metadata = { title: "المعاينة" };
 
@@ -40,9 +32,9 @@ export default async function ProjectPreviewPage({
   const project = await getProjectById(db, ctx, projectId);
   if (!project) notFound();
   const artifactId = query.artifact;
-  const viewport = ["desktop", "tablet", "mobile"].includes(query.viewport ?? "")
-    ? query.viewport
-    : "desktop";
+  const viewport =
+    (["desktop", "tablet", "mobile"] as const).find((candidate) => candidate === query.viewport) ??
+    "desktop";
   if (artifactId && !projectIdSchema.safeParse(artifactId).success) notFound();
   const artifact = artifactId
     ? await getArtifactById(db, ctx, projectId, artifactId)
@@ -82,72 +74,18 @@ export default async function ProjectPreviewPage({
         <StatusBanner className="mb-4" tone="info">
           اجتازت النتيجة التحقق المعزول. المعاينة خاصة ومؤقتة، والتنزيل يمر عبر صلاحيات المشروع.
         </StatusBanner>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-card p-2">
-          <div className="flex flex-wrap gap-2" aria-label="حجم المعاينة">
-            {[
-              { icon: Monitor, id: "desktop", label: "سطح المكتب" },
-              { icon: Tablet, id: "tablet", label: "جهاز لوحي" },
-              { icon: Smartphone, id: "mobile", label: "هاتف" },
-            ].map((item) => {
-              const Icon = item.icon;
-              const active = viewport === item.id;
-              return (
-                <Button
-                  key={item.id}
-                  asChild
-                  size="compact"
-                  variant={active ? "primary" : "secondary"}
-                >
-                  <Link
-                    href={`/projects/${projectId}/preview?artifact=${artifact.id}&viewport=${item.id}`}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <Icon aria-hidden className="size-4" />
-                    {item.label}
-                  </Link>
-                </Button>
-              );
-            })}
-          </div>
-          <Button asChild size="compact" variant="ghost">
-            <Link
-              href={`/projects/${projectId}/preview?artifact=${artifact.id}&viewport=${viewport}`}
-            >
-              <RefreshCw aria-hidden className="size-4" />
-              تحديث
-            </Link>
-          </Button>
-        </div>
-        <div className="overflow-x-auto rounded-md border border-line bg-page p-2 shadow-sm">
-          <div
-            className={
-              viewport === "mobile"
-                ? "mx-auto w-[390px] max-w-full overflow-hidden rounded-md border border-line bg-white"
-                : viewport === "tablet"
-                  ? "mx-auto w-[768px] max-w-full overflow-hidden rounded-md border border-line bg-white"
-                  : "overflow-hidden rounded-md border border-line bg-white"
-            }
-          >
-            <iframe
-              className="block h-[62dvh] min-h-[440px] w-full"
-              referrerPolicy="no-referrer"
-              sandbox="allow-scripts"
-              src={previewUrl}
-              title={`معاينة موقع ${project.title}`}
-            />
-          </div>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <PreviewExperience
+          artifactId={artifact.id}
+          initialViewport={viewport}
+          previewUrl={previewUrl}
+          projectId={projectId}
+          projectTitle={project.title}
+        />
+        <div className="mt-4">
           <Button asChild>
             <a href={`/api/projects/${projectId}/artifacts/${artifact.id}/download`} rel="nofollow">
               <Download aria-hidden className="size-5" />
               تنزيل ملف ZIP
-            </a>
-          </Button>
-          <Button asChild variant="secondary">
-            <a href={previewUrl} rel="nofollow noreferrer" target="_blank">
-              <ExternalLink aria-hidden className="size-5" />
-              فتح المعاينة
             </a>
           </Button>
         </div>
