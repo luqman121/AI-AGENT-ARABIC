@@ -250,7 +250,7 @@ export function RunPanel({
   const isCancelled = run?.status === "cancelled";
 
   return (
-    <section aria-label="حالة الوكيل" className="mb-4">
+    <section id="activity" aria-label="حالة الوكيل" className="mb-4 scroll-mt-32">
       {working ? (
         <AgentWorking
           runKind={run?.kind ?? "planning"}

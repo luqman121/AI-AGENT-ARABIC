@@ -19,6 +19,7 @@ import {
 import type { RunEventPayload } from "@wakil/shared";
 import {
   Archive,
+  ArrowDown,
   ArrowRight,
   EllipsisVertical,
   Eye,
@@ -33,12 +34,14 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import { formatDateTimeLabel } from "../../../../src/lib/format-date";
 import { newIdempotencyKey } from "../../../../src/lib/idempotency-key";
+import { arMessages } from "../../../../src/product/messages.ar";
 import {
   appendRequirementAction,
   archiveProjectAction,
   renameProjectAction,
 } from "../../../../src/server/actions/projects";
 import type { ArtifactResultSummary } from "./artifact-result-card";
+import { MobileWorkspaceNav } from "./mobile-workspace-nav";
 import { RunPanel, type RunPanelSummary } from "./run-panel";
 
 export type ConversationMessage = {
@@ -108,11 +111,35 @@ export function ConversationView({
   const [archivePending, startArchive] = useTransition();
 
   const [toast, setToast] = useState<ToastData | null>(null);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const initialScrollRef = useRef(false);
+  const nearLatestRef = useRef(true);
   const attachmentUrlsRef = useRef(new Set<string>());
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
+    const update = () => {
+      const end = endRef.current;
+      const nearLatest = !end || end.getBoundingClientRect().top <= window.innerHeight + 160;
+      nearLatestRef.current = nearLatest;
+      setShowJumpToLatest(!nearLatest);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialScrollRef.current && !nearLatestRef.current) return;
+    initialScrollRef.current = true;
+    const frame = window.requestAnimationFrame(() =>
+      endRef.current?.scrollIntoView({ block: "end" }),
+    );
+    return () => window.cancelAnimationFrame(frame);
   }, [messages.length]);
 
   useEffect(() => {
@@ -363,6 +390,8 @@ export function ConversationView({
         }
       />
 
+      <MobileWorkspaceNav projectId={projectId} />
+
       <main
         id="main"
         style={
@@ -418,7 +447,7 @@ export function ConversationView({
           </div>
         </aside>
 
-        <section className="min-w-0">
+        <section id="conversation" className="min-w-0 scroll-mt-32">
           {archived ? (
             <StatusBanner tone="info" icon={Archive} className="mb-4">
               هذا المشروع مؤرشف؛ يمكنك قراءته فقط.
@@ -484,6 +513,26 @@ export function ConversationView({
           )}
         </aside>
       </main>
+
+      {showJumpToLatest ? (
+        <Button
+          type="button"
+          size="compact"
+          variant="secondary"
+          style={{
+            bottom: `calc(${archived ? 72 : composerHeight + 72}px + env(safe-area-inset-bottom))`,
+          }}
+          onClick={() => {
+            nearLatestRef.current = true;
+            setShowJumpToLatest(false);
+            endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+          }}
+          className="fixed left-1/2 z-(--wk-z-nav) -translate-x-1/2 shadow-soft"
+        >
+          <ArrowDown aria-hidden className="size-4" />
+          {arMessages.workspace.jumpToLatest}
+        </Button>
+      ) : null}
 
       {archived ? null : (
         <RequestComposer
