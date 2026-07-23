@@ -10,6 +10,7 @@ import {
 import {
   FileSpreadsheet,
   FileText,
+  GalleryVerticalEnd,
   Globe,
   Image as ImageIcon,
   MoreHorizontal,
@@ -68,6 +69,15 @@ const CREATION_TYPES: CreationOption[] = [
     label: "Excel",
     outputKind: "spreadsheet",
     placeholder: "مثال: أنشئ ملف Excel لحساب المبيعات والمصاريف وصافي الربح…",
+  },
+  {
+    accept: "image/*,application/pdf,text/plain,.ppt,.pptx",
+    disabled: true,
+    icon: GalleryVerticalEnd,
+    id: "presentation",
+    label: "عرض تقديمي",
+    outputKind: "presentation",
+    placeholder: "مثال: جهّز عرضًا تقديميًا عربيًا من 8 شرائح عن خطة إطلاق منتج جديد…",
   },
   {
     accept: "image/*,application/pdf,text/plain",

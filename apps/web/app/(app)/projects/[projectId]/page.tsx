@@ -5,7 +5,7 @@ import { requireAuthorizedContext } from "../../../../src/server/auth/session";
 import { getDatabase } from "../../../../src/server/db";
 import { listProjectArtifacts } from "../../../../src/server/features/artifacts/queries";
 import { getProjectConversation } from "../../../../src/server/features/conversations/queries";
-import { getProjectById } from "../../../../src/server/features/projects/queries";
+import { getProjectById, listProjects } from "../../../../src/server/features/projects/queries";
 import { getLatestRun, getRunEventsAfter } from "../../../../src/server/features/runs/queries";
 import { ConversationView } from "./conversation-view";
 
@@ -40,6 +40,7 @@ export default async function ProjectConversationPage({
     ? await getRunEventsAfter(getDatabase(), ctx, projectId, latestRun.id, 0)
     : [];
   const projectArtifacts = await listProjectArtifacts(getDatabase(), ctx, projectId);
+  const recentProjects = await listProjects(getDatabase(), ctx, { filter: "active", query: "" });
 
   return (
     <ConversationView
@@ -60,6 +61,15 @@ export default async function ProjectConversationPage({
         role: message.role,
       }))}
       projectId={conversation.project.id}
+      recentProjects={recentProjects
+        .filter((project) => project.id !== conversation.project.id)
+        .slice(0, 6)
+        .map((project) => ({
+          excerpt: project.excerpt,
+          id: project.id,
+          title: project.title,
+          updatedAtIso: project.updatedAt.toISOString(),
+        }))}
       title={conversation.project.title}
     />
   );

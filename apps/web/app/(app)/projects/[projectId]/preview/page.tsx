@@ -1,6 +1,15 @@
 import { projectIdSchema } from "@wakil/shared";
 import { Button, AppHeader, EmptyState, PageShell, StatusBanner } from "@wakil/ui";
-import { Download, ExternalLink, MonitorPlay } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  Monitor,
+  MonitorPlay,
+  RefreshCw,
+  Smartphone,
+  Tablet,
+} from "lucide-react";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -22,7 +31,7 @@ export default async function ProjectPreviewPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ artifact?: string }>;
+  searchParams: Promise<{ artifact?: string; viewport?: string }>;
 }) {
   const [{ projectId }, query] = await Promise.all([params, searchParams]);
   if (!projectIdSchema.safeParse(projectId).success) notFound();
@@ -31,6 +40,9 @@ export default async function ProjectPreviewPage({
   const project = await getProjectById(db, ctx, projectId);
   if (!project) notFound();
   const artifactId = query.artifact;
+  const viewport = ["desktop", "tablet", "mobile"].includes(query.viewport ?? "")
+    ? query.viewport
+    : "desktop";
   if (artifactId && !projectIdSchema.safeParse(artifactId).success) notFound();
   const artifact = artifactId
     ? await getArtifactById(db, ctx, projectId, artifactId)
@@ -70,14 +82,60 @@ export default async function ProjectPreviewPage({
         <StatusBanner className="mb-4" tone="info">
           اجتازت النتيجة التحقق المعزول. المعاينة خاصة ومؤقتة، والتنزيل يمر عبر صلاحيات المشروع.
         </StatusBanner>
-        <div className="overflow-hidden rounded-md border border-line bg-white shadow-sm">
-          <iframe
-            className="block h-[62dvh] min-h-[440px] w-full"
-            referrerPolicy="no-referrer"
-            sandbox="allow-scripts"
-            src={previewUrl}
-            title={`معاينة موقع ${project.title}`}
-          />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-card p-2">
+          <div className="flex flex-wrap gap-2" aria-label="حجم المعاينة">
+            {[
+              { icon: Monitor, id: "desktop", label: "سطح المكتب" },
+              { icon: Tablet, id: "tablet", label: "جهاز لوحي" },
+              { icon: Smartphone, id: "mobile", label: "هاتف" },
+            ].map((item) => {
+              const Icon = item.icon;
+              const active = viewport === item.id;
+              return (
+                <Button
+                  key={item.id}
+                  asChild
+                  size="compact"
+                  variant={active ? "primary" : "secondary"}
+                >
+                  <Link
+                    href={`/projects/${projectId}/preview?artifact=${artifact.id}&viewport=${item.id}`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon aria-hidden className="size-4" />
+                    {item.label}
+                  </Link>
+                </Button>
+              );
+            })}
+          </div>
+          <Button asChild size="compact" variant="ghost">
+            <Link
+              href={`/projects/${projectId}/preview?artifact=${artifact.id}&viewport=${viewport}`}
+            >
+              <RefreshCw aria-hidden className="size-4" />
+              تحديث
+            </Link>
+          </Button>
+        </div>
+        <div className="overflow-x-auto rounded-md border border-line bg-page p-2 shadow-sm">
+          <div
+            className={
+              viewport === "mobile"
+                ? "mx-auto w-[390px] max-w-full overflow-hidden rounded-md border border-line bg-white"
+                : viewport === "tablet"
+                  ? "mx-auto w-[768px] max-w-full overflow-hidden rounded-md border border-line bg-white"
+                  : "overflow-hidden rounded-md border border-line bg-white"
+            }
+          >
+            <iframe
+              className="block h-[62dvh] min-h-[440px] w-full"
+              referrerPolicy="no-referrer"
+              sandbox="allow-scripts"
+              src={previewUrl}
+              title={`معاينة موقع ${project.title}`}
+            />
+          </div>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Button asChild>

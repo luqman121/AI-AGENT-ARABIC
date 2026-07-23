@@ -17,7 +17,16 @@ import {
   type ToastData,
 } from "@wakil/ui";
 import type { RunEventPayload } from "@wakil/shared";
-import { Archive, ArrowRight, EllipsisVertical, Eye, PencilLine } from "lucide-react";
+import {
+  Archive,
+  ArrowRight,
+  EllipsisVertical,
+  Eye,
+  FolderOpen,
+  MessageSquarePlus,
+  MonitorPlay,
+  PencilLine,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -48,6 +57,13 @@ const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ALLOWED_ATTACHMENT =
   /^(image\/(jpeg|png|webp)|audio\/(webm|mpeg|wav|mp4)|application\/pdf|text\/plain|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|vnd\.ms-excel))$/;
 
+type RecentProjectSummary = {
+  excerpt: string;
+  id: string;
+  title: string;
+  updatedAtIso: string;
+};
+
 type ViewProps = {
   archived: boolean;
   /** True only right after creation, when the page URL still carries `?autostart=1`. */
@@ -57,6 +73,7 @@ type ViewProps = {
   artifacts: ArtifactResultSummary[];
   messages: ConversationMessage[];
   projectId: string;
+  recentProjects: RecentProjectSummary[];
   title: string;
 };
 
@@ -68,6 +85,7 @@ export function ConversationView({
   initialRun,
   messages,
   projectId,
+  recentProjects,
   title,
 }: ViewProps) {
   const router = useRouter();
@@ -354,41 +372,117 @@ export function ConversationView({
         }
         className={
           archived
-            ? "mx-auto flex w-full max-w-160 flex-1 flex-col px-4 pb-[calc(72px+env(safe-area-inset-bottom))] pt-4"
-            : "mx-auto flex w-full max-w-160 flex-1 flex-col px-4 pt-4"
+            ? "mx-auto grid w-full max-w-[1180px] flex-1 gap-4 px-4 pb-[calc(72px+env(safe-area-inset-bottom))] pt-4 lg:grid-cols-[240px_minmax(0,1fr)_300px]"
+            : "mx-auto grid w-full max-w-[1180px] flex-1 gap-4 px-4 pt-4 lg:grid-cols-[240px_minmax(0,1fr)_300px]"
         }
       >
-        {archived ? (
-          <StatusBanner tone="info" icon={Archive} className="mb-4">
-            هذا المشروع مؤرشف؛ يمكنك قراءته فقط.
+        <aside className="hidden min-h-0 rounded-lg border border-line bg-surface-1 p-3 lg:block">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-fg">مشاريع قريبة</p>
             <Link
-              href="/projects?filter=archived"
-              className="wk-focus-ring ms-1 inline-flex min-h-11 items-center underline"
+              href="/new"
+              aria-label="مشروع جديد"
+              className="wk-focus-ring inline-flex size-10 items-center justify-center rounded-md bg-accent text-fg-on-accent"
             >
-              عرض المؤرشفة
+              <MessageSquarePlus aria-hidden className="size-4" />
             </Link>
-          </StatusBanner>
-        ) : null}
-        <div className="flex flex-1 flex-col justify-end gap-4">
-          {messages.map((message) => (
-            <MessageItem
-              key={message.id}
-              content={message.content}
-              dateLabel={formatDateTimeLabel(new Date(message.createdAtIso))}
-              role={message.role}
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="rounded-md border border-accent/60 bg-accent-subtle p-3">
+              <p className="line-clamp-2 text-sm font-bold leading-6 text-fg">{title}</p>
+              <p className="mt-1 text-xs text-fg-accent">المشروع الحالي</p>
+            </div>
+            {recentProjects.length > 0 ? (
+              recentProjects.map((project) => (
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="wk-focus-ring rounded-md border border-line bg-card p-3 transition-colors hover:bg-overlay"
+                >
+                  <span className="line-clamp-1 text-sm font-semibold text-fg-2">
+                    {project.title}
+                  </span>
+                  <span className="mt-1 line-clamp-2 text-xs leading-5 text-fg-3">
+                    {project.excerpt || "لا يوجد وصف محفوظ."}
+                  </span>
+                  <span className="mt-2 block text-[11px] text-fg-3">
+                    {formatDateTimeLabel(new Date(project.updatedAtIso))}
+                  </span>
+                </Link>
+              ))
+            ) : (
+              <p className="rounded-md border border-dashed border-line p-3 text-xs leading-5 text-fg-3">
+                ستظهر مشاريعك الأخيرة هنا بعد إنشاء مشاريع أخرى.
+              </p>
+            )}
+          </div>
+        </aside>
+
+        <section className="min-w-0">
+          {archived ? (
+            <StatusBanner tone="info" icon={Archive} className="mb-4">
+              هذا المشروع مؤرشف؛ يمكنك قراءته فقط.
+              <Link
+                href="/projects?filter=archived"
+                className="wk-focus-ring ms-1 inline-flex min-h-11 items-center underline"
+              >
+                عرض المؤرشفة
+              </Link>
+            </StatusBanner>
+          ) : null}
+          <div className="mx-auto flex w-full max-w-160 flex-1 flex-col justify-end gap-4">
+            {messages.map((message) => (
+              <MessageItem
+                key={message.id}
+                content={message.content}
+                dateLabel={formatDateTimeLabel(new Date(message.createdAtIso))}
+                role={message.role}
+              />
+            ))}
+            <RunPanel
+              archived={archived}
+              autoStart={autoStart}
+              initialEvents={initialEvents}
+              initialRun={initialRun}
+              artifacts={artifacts}
+              projectId={projectId}
+              projectTitle={title}
             />
-          ))}
-          <RunPanel
-            archived={archived}
-            autoStart={autoStart}
-            initialEvents={initialEvents}
-            initialRun={initialRun}
-            artifacts={artifacts}
-            projectId={projectId}
-            projectTitle={title}
-          />
-          <div ref={endRef} />
-        </div>
+            <div ref={endRef} />
+          </div>
+        </section>
+
+        <aside className="hidden min-h-0 rounded-lg border border-line bg-surface-1 p-3 lg:flex lg:flex-col">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-fg">المعاينة والنتيجة</p>
+            <MonitorPlay aria-hidden className="size-4 text-fg-3" />
+          </div>
+          {artifacts[0] ? (
+            <Link
+              href={`/projects/${projectId}/preview?artifact=${artifacts[0].id}`}
+              className="wk-focus-ring flex min-h-[260px] flex-1 flex-col justify-between overflow-hidden rounded-md border border-line bg-page p-3 transition-colors hover:bg-overlay"
+            >
+              <span className="rounded-md border border-line bg-white p-2 shadow-sm" dir="ltr">
+                <span className="mb-2 flex gap-1 border-b border-slate-200 pb-2">
+                  <span className="size-2 rounded-full bg-slate-300" />
+                  <span className="size-2 rounded-full bg-slate-300" />
+                  <span className="size-2 rounded-full bg-slate-300" />
+                </span>
+                <span className="block h-24 rounded bg-slate-100" />
+              </span>
+              <span className="mt-3 text-sm font-semibold text-fg">فتح المعاينة الكاملة</span>
+              <span className="text-xs text-fg-3">المعاينة الخاصة تفتح في صفحة آمنة منفصلة.</span>
+            </Link>
+          ) : (
+            <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center rounded-md border border-dashed border-line p-4 text-center">
+              <FolderOpen aria-hidden className="mb-3 size-8 text-fg-3" />
+              <p className="text-sm font-semibold text-fg">لا توجد نتيجة بعد</p>
+              <p className="mt-2 text-xs leading-5 text-fg-3">
+                ستظهر المعاينة هنا على سطح المكتب بعد اكتمال التنفيذ الحقيقي.
+              </p>
+            </div>
+          )}
+        </aside>
       </main>
 
       {archived ? null : (

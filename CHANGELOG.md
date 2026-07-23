@@ -4,6 +4,20 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Arabic agent workspace UI
+
+- Documented the inspected open-source reference repositories and license boundaries in
+  `docs/OPEN_SOURCE_REFERENCES.md`. Adorable and bolt.diy were treated as MIT references, Onlook as
+  Apache-2.0, and Vibra Code as AGPL-3.0 visual/product-behavior reference only; no external source
+  code was copied into Wakil.
+- Added the missing `عرض تقديمي` output shortcut to the Arabic home composer while keeping it
+  disabled until a real presentation generator exists.
+- Enhanced the project workspace on desktop with a three-column layout: recent project navigation,
+  primary conversation/progress surface, and a preview/result side panel. Mobile keeps the existing
+  full-width chat and sticky composer instead of compressing desktop panels.
+- Added preview viewport controls for desktop, tablet, and mobile sizes while preserving the
+  server-side signed private artifact URL flow and secure sandboxed iframe.
+
 ### Internal admin dashboard
 
 - Added a secure, real-data operations dashboard inside the web app at `/admin` (no separate app, no
