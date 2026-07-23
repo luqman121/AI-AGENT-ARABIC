@@ -1,38 +1,74 @@
 # Wakil M0-M2 Implementation Plan
 
-## Arabic agent workspace UI upgrade (2026-07-23)
+## M3.1 Arabic agent workspace experience (2026-07-23)
 
-- **Scope:** upgrade the existing production-oriented Wakil repository in place toward a polished
-  Arabic-first, mobile-first agent workspace. This run preserves the current backend contracts:
-  Auth.js, PostgreSQL/Drizzle, BullMQ, persisted run events/SSE, private S3/R2 artifacts, tenant
-  authorization, admin dashboard, worker boundaries, and the current static-site artifact
-  capability.
-- **Architecture discovered:** pnpm/Turborepo monorepo; `apps/web` is Next.js 16 App Router with
-  Arabic RTL root and server actions/API routes; `apps/worker` processes bounded planning/execution
-  jobs; `packages/db` owns Drizzle schema/migrations for workspaces, projects, conversations,
-  attachments, runs, run events, artifacts, usage, and audit; `packages/shared` owns Zod contracts
-  and run event labels; `packages/ui` owns reusable RTL components and design tokens; private
-  artifact previews/downloads are served via server-side signed URLs.
-- **Reference audit:** Adorable (MIT), bolt.diy (MIT), Onlook (Apache-2.0), and Vibra Code
-  (AGPL-3.0) were shallow-cloned outside the source tree under `/tmp/wakil-open-source-refs`. No
-  source was copied. Details are recorded in `docs/OPEN_SOURCE_REFERENCES.md`.
-- **Implementation slices:** (1) document open-source references and license boundaries, (2) add the
-  missing presentation shortcut while keeping unsupported output types disabled, (3) enhance the
-  project workspace into a desktop split layout with recent-project navigation and preview/result
-  side panel while retaining the existing mobile-first chat/composer flow, and (4) add preview
-  viewport controls for desktop/tablet/mobile without exposing object keys or changing signed URL
-  authorization.
-- **Assumptions:** broad PDF/spreadsheet/presentation/image/audio generation remains unavailable
-  until backend capabilities exist; unsupported shortcuts stay disabled and labeled truthfully.
-  Visual editing remains reference-only/feature-flag future work. No database migration is required.
-- **Verification plan:** run formatting check, lint, strict typecheck, unit tests, production build,
-  and the relevant Playwright/e2e smoke if services are available. Browser verification must inspect
-  the Arabic home/workspace/preview at mobile and desktop sizes, with RTL/LTR boundaries and console
-  errors checked.
-- **Acceptance:** user can still create a real project/run from the Arabic composer, existing real
-  run events remain the progress source, refresh restores project state, preview/download remain
-  tenant-authorized, desktop users get practical navigation/preview structure, mobile users keep a
-  full-width conversation and sticky composer, and open-source attribution is documented.
+The repository audit is recorded in `docs/arabic-agent-workspace-audit.md`. This slice upgrades the
+existing real website flow in place; it does not introduce new generators or backend contracts.
+
+### Phase 1 — Audit and references
+
+- Reconfirm auth, tenancy, project/run/event, queue, storage, worker, Docker, CI, and test
+  boundaries.
+- Inspect Adorable, bolt.diy, Onlook, and Vibra Code only in `/tmp/wakil-open-source-refs`.
+- Record license, studied behavior, code reuse (none), affected Wakil files, attribution, and
+  concerns.
+
+### Phase 2 — Foundations
+
+- Add a small Arabic messages/capabilities layer for the home/workspace/result flow.
+- Keep `static_site` as the only enabled output capability until real backend generators exist.
+- Add a disabled visual-editing feature flag; do not expose a disconnected editor.
+- Preserve the existing semantic tokens, Cairo setup, `lang="ar" dir="rtl"`, and explicit LTR
+  islands.
+
+### Phase 3 — Home and composer
+
+- Use the requested prompt-first Arabic headline and supporting sentence.
+- Keep the existing multiline, keyboard, attachment, image, audio-recording, validation, upload,
+  idempotency, and safe-area behavior.
+- Add tenant-scoped recent projects to the authenticated home using `listProjects`.
+- Explain unavailable output shortcuts truthfully without restricting free-form input.
+
+### Phase 4 — Workspace
+
+- Preserve the desktop project/conversation/preview split and real project navigation.
+- Add a compact mobile workspace switcher for conversation, dedicated full-screen preview, and real
+  activity; do not squeeze code or a desktop sidebar onto mobile.
+- Add jump-to-latest behavior without breaking the sticky composer or automatic scroll on new data.
+- Keep progress mapped only from persisted `RunEventPayload` values and preserve SSE replay,
+  duplicate protection, reconnection state, cancellation, retry, and refresh recovery.
+
+### Phase 5 — Preview and artifacts
+
+- Extract focused preview controls for viewport selection, stable authorized-link copying, refresh,
+  open-in-new-tab, and browser full-screen.
+- Keep the signed artifact URL server-generated, short lived, sandboxed, and on a separate origin.
+- Make artifact-result copy/icon/action presentation generic by real `kind`; do not claim publish,
+  GitHub, visual editing, or non-existent output generators.
+
+### Phase 6 — Advanced tools
+
+- No new files/code/log/terminal UI is added in this slice because the backend does not expose safe
+  project-source browsing or shell input contracts. Existing user-safe execution details remain the
+  only advanced surface.
+- Visual editing stays disabled behind a feature flag for a later architecture milestone.
+
+### Phase 7 — QA and local delivery
+
+- Add focused tests for capability metadata, Arabic home rendering, recent projects, mobile
+  workspace navigation, jump-to-latest, preview controls, artifact action visibility, and LTR
+  boundaries.
+- Run formatting, lint, typecheck, tests, production build, and Playwright responsive/a11y flows
+  where the local dependency harness is available.
+- Commit logical phases locally on `feat/arabic-agent-workspace-ui`.
+- Do not push or deploy production in this task.
+
+### Acceptance
+
+The real Arabic website journey remains tenant-authorized end to end; unsupported output types stay
+truthfully unavailable; mobile navigation does not compress desktop UI; preview and artifact actions
+remain authorized; progress stays event-driven; no fake production behavior, backend replacement,
+database migration, remote push, or deployment is introduced.
 
 ## M3 production release readiness (2026-07-18)
 

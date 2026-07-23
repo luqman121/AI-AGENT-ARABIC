@@ -35,13 +35,14 @@ sandbox.
 
 ## Current Milestone Scope
 
-M0, M1, M2 Layer A, M2 Layer B, and M2 Layer C are complete. The current approved milestone is **M3
-— Production Release Readiness**.
+M0, M1, M2 Layer A, M2 Layer B, M2 Layer C, and the repository work for M3 are complete. The current
+approved milestone is **M3.1 — Arabic Agent Workspace Experience**.
 
-**Status:** repository implementation and local verification are complete. The project is ready for
-production configuration, but provider-side configuration, backups, monitoring, physical-device
-checks, deployment approval, and the production rollout remain manual and are not claimed as
-complete. This milestone did not deploy production or add product functionality.
+**Status:** this is a bounded product-experience hardening slice over the existing website flow. It
+may improve the prompt-first home, mobile/desktop workspace navigation, truthful event-driven
+progress presentation, preview controls, artifact-result presentation, RTL/LTR boundaries,
+accessibility, and focused tests. It must not add unsupported generators or alter the locked backend
+architecture. Production deployment and remote pushes are outside this milestone.
 
 ### M0 — Foundation
 
@@ -99,9 +100,18 @@ complete. This milestone did not deploy production or add product functionality.
   manual production procedure.
 - Verify the complete local quality, migration, storage, workflow, container, and smoke gates.
 
-Do not implement PDF/spreadsheet/presentation/image generation, billing or credits, checkout, custom
-domains, external messaging, team invitations, workspace switching, or production publishing in this
-milestone. Do not begin M4.
+### M3.1 — Arabic Agent Workspace Experience
+
+- Centralize copy and output-capability metadata used by the prompt-first flow.
+- Improve the authenticated home with the primary Arabic composer and real recent projects.
+- Improve mobile workspace navigation without compressing the desktop split layout.
+- Keep progress stage-based and driven only by persisted backend events.
+- Improve preview and artifact-result controls using existing authorized signed-link flows.
+- Document reference-project licensing and add focused responsive/accessibility tests.
+
+Do not implement PDF/spreadsheet/presentation/image/audio generation, billing or credits, checkout,
+custom domains, external messaging, team invitations, workspace switching, visual code editing,
+interactive terminal input, or production publishing in this milestone. Do not begin M4.
 
 ## Locked Architecture
 
@@ -134,17 +144,18 @@ intentional motion should create a premium identity without generic AI-template 
 
 ## Success Criteria for This Codex Run
 
-- Production configuration is completely inventoried by service and remains server-only where
-  required.
-- Web and worker have separate production processes, safe dependency-aware readiness checks,
-  graceful shutdown, and immutable container targets.
-- Production migrations run once as a dedicated job; PostgreSQL, Redis, and R2 remain private and
-  least-privileged.
-- CI blocks release preparation on formatting, lint, typecheck, tests, migration validation,
-  production builds, and container builds without exposing production secrets to pull requests.
-- Operators have executable smoke checks and precise deployment, monitoring, backup, restore,
-  rollback, and mobile verification checklists.
-- All supported local gates pass; anything requiring provider access, production credentials,
-  real-device hardware, or deployment approval is reported as a manual or blocked item.
-- `CHANGELOG.md` records only behavior verified in this run, and no commit or deployment occurs
-  without explicit user approval.
+- The audit and integration plan describe the actual repository and licensing boundaries before UI
+  implementation begins.
+- The Arabic prompt-first home uses the existing project/run APIs and displays real recent projects.
+- Mobile workspace navigation exposes conversation, preview, and real execution activity without a
+  permanent desktop sidebar or horizontal overflow.
+- Preview and artifact-result actions are truthful, authorized, keyboard accessible, and keep
+  technical values in explicit LTR boundaries.
+- Unsupported output types stay disabled with clear Arabic explanations; no fake production behavior
+  is introduced.
+- Auth, tenancy, PostgreSQL, Redis, BullMQ, worker execution, SSE replay, R2/S3 storage, admin, and
+  deployment contracts remain unchanged.
+- Focused tests and all affected format, lint, typecheck, test, build, accessibility, and responsive
+  gates pass, or any environment-only blocker is reported precisely.
+- `CHANGELOG.md` records only behavior verified in this run. Work is committed locally on the
+  feature branch; no production deployment or remote push occurs.
