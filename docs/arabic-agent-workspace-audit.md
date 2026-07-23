@@ -1,7 +1,6 @@
 # Arabic Agent Workspace Audit
 
-Date: 2026-07-23  
-Branch: `feat/arabic-agent-workspace-ui`
+Date: 2026-07-23 Branch: `feat/arabic-agent-workspace-ui`
 
 ## Scope and decision
 

@@ -10,13 +10,36 @@ All notable changes to Wakil are documented in this file.
   `docs/OPEN_SOURCE_REFERENCES.md`. Adorable and bolt.diy were treated as MIT references, Onlook as
   Apache-2.0, and Vibra Code as AGPL-3.0 visual/product-behavior reference only; no external source
   code was copied into Wakil.
-- Added the missing `عرض تقديمي` output shortcut to the Arabic home composer while keeping it
-  disabled until a real presentation generator exists.
-- Enhanced the project workspace on desktop with a three-column layout: recent project navigation,
-  primary conversation/progress surface, and a preview/result side panel. Mobile keeps the existing
-  full-width chat and sticky composer instead of compressing desktop panels.
-- Added preview viewport controls for desktop, tablet, and mobile sizes while preserving the
-  server-side signed private artifact URL flow and secure sandboxed iframe.
+- Centralized the Arabic home/workspace/result copy, output capability metadata, and the disabled
+  visual editing flag in a focused product layer. The authenticated prompt-first home now uses the
+  requested Arabic headline and supporting copy, and shows real tenant-scoped recent projects.
+- Kept `static_site` as the only enabled output shortcut. App, PDF, spreadsheet, presentation,
+  image, audio, document, and other intents remain visible but disabled with a truthful
+  backend-capability explanation; no fake generator or production progress was added.
+- Added a compact mobile workspace switcher for conversation, the dedicated preview route, and real
+  activity, plus jump-to-latest scroll management that stops forcing the user to the bottom while
+  they are reviewing earlier messages. The desktop three-column workspace and sticky mobile composer
+  remain intact.
+- Restored the locked planning boundary: the initial planning run may start after project creation,
+  but a succeeded plan now waits for the explicit `ابدأ إنشاء الموقع` action before execution. The
+  existing SSE, cancellation, worker, sandbox, and artifact contracts remain unchanged.
+- Rebuilt the preview controls as a focused client component with desktop/tablet/mobile viewport
+  state, refresh, open-in-new-tab, stable authorized-link copying, browser full-screen, an explicit
+  LTR address island, exact scrollable 390/768 stages, and the existing sandboxed, short-lived
+  signed artifact URL. Authenticated preview links are labeled as private rather than public sharing
+  links.
+- Generalized artifact result labels, icons, ready copy, and preview-action visibility by actual
+  artifact kind. Only the currently previewable static-site artifact exposes preview actions;
+  unsupported future kinds do not claim a viewer exists.
+- Added jsdom component coverage for recent projects, mobile workspace navigation, preview controls,
+  stable link copying, LTR boundaries, sandbox restrictions, visual-editing flags, capability
+  selection, and artifact action visibility. Updated Playwright flows for the Arabic home, mobile
+  workspace navigation, recent projects, and preview controls.
+- Verified `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (17 package tasks; web
+  55/55, UI 28/28), and `pnpm build`. Integration and Playwright execution remain blocked on this
+  host by a missing container runtime and `.env.local`; the suites were invoked and their
+  prerequisite failures recorded. No database migration, remote push, or production deployment was
+  performed.
 - Promoted the direct-IP deployment safeguards that were previously server-local patches: an
   explicit `ALLOW_INSECURE_HTTP_PREVIEW` gate for HTTP previews, a browser-safe UUID fallback for
   HTTP origins, and a sign-in proxy rule that avoids stale-cookie redirect loops.
