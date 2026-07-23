@@ -8,15 +8,13 @@ import { composeInstructionsBlock, loadSkillInstructions } from "./loader.js";
 import { routeSkills } from "./router.js";
 import { wrapUntrustedContent } from "./security.js";
 import { estimateTokens } from "./tokens.js";
-import type { CompiledPrompt, RequestMode, RoutedSkills, RouterInput } from "./types.js";
-
-export type CompileParams = {
-  input: RouterInput;
-  /** Precomputed routing decision; recomputed from `input` when omitted. */
-  routed?: RoutedSkills;
-  /** Uploaded text to fence into the user message as untrusted data. */
-  uploadedContent?: { label: string; text: string }[];
-};
+import type {
+  CompiledPrompt,
+  RequestMode,
+  RoutedSkills,
+  RouterInput,
+  RunPromptMetadata,
+} from "./types.js";
 
 function isReadingMode(mode: RequestMode): boolean {
   return mode === "read" || mode === "analyze";
@@ -27,8 +25,62 @@ function localeLine(language: string, rtl: boolean): string {
   return `السياق: اللغة=${language}، الاتجاه=${dir}.`;
 }
 
+function metadataFor(
+  routed: RoutedSkills,
+  skillVersions: Record<string, string>,
+): RunPromptMetadata {
+  return {
+    promptVersion: CORE_SYSTEM_PROMPT_VERSION,
+    skillIds: routed.skillIds,
+    skillVersions,
+    estimatedTokens: routed.estimatedInstructionTokens,
+    locale: routed.language,
+    validationProfile: isReadingMode(routed.mode) ? "reading" : routed.artifactType,
+    artifactType: routed.artifactType,
+    mode: routed.mode,
+    rtl: routed.rtl,
+  };
+}
+
+export type SkillsAddendum = {
+  /** Selected skill instructions, ready to append to a developer message. Empty string if none selected. */
+  block: string;
+  /** The routing decision that produced this addendum. */
+  routed: RoutedSkills;
+  /** Admin-only run metadata. Token estimate here covers only the addendum block. */
+  metadata: RunPromptMetadata;
+};
+
 /**
- * Composes the final provider-neutral runtime prompt from:
+ * Routes and loads the minimal relevant skill set for a request and returns
+ * just the instructions block (plus routing metadata) — without building a
+ * full three-part prompt. This is the integration seam for callers (such as
+ * `@wakil/agent-core`) that already own a tested system/developer envelope
+ * and only want the runtime to select and compile skill guidance into it,
+ * rather than replace it outright.
+ */
+export function compileSkillsAddendum(input: RouterInput): SkillsAddendum {
+  const routed = routeSkills(input);
+  const loaded = loadSkillInstructions(routed.skillIds);
+  const instructionsBlock = composeInstructionsBlock(loaded);
+  const block = instructionsBlock ? `المهارات المفعّلة:\n${instructionsBlock}` : "";
+
+  const skillVersions: Record<string, string> = {};
+  for (const skill of loaded) skillVersions[skill.id] = skill.version;
+
+  return { block, routed, metadata: metadataFor(routed, skillVersions) };
+}
+
+export type CompileParams = {
+  input: RouterInput;
+  /** Precomputed routing decision; recomputed from `input` when omitted. */
+  routed?: RoutedSkills;
+  /** Uploaded text to fence into the user message as untrusted data. */
+  uploadedContent?: { label: string; text: string }[];
+};
+
+/**
+ * Composes the full provider-neutral runtime prompt from:
  *   core system prompt + platform safety + run/user context +
  *   selected skill instructions + artifact requirements + validation.
  *
@@ -74,16 +126,6 @@ export function compileRuntimePrompt(params: CompileParams): CompiledPrompt {
 
   return {
     prompt,
-    metadata: {
-      promptVersion: CORE_SYSTEM_PROMPT_VERSION,
-      skillIds: loaded.map((skill) => skill.id),
-      skillVersions,
-      estimatedTokens,
-      locale: routed.language,
-      validationProfile: reading ? "reading" : routed.artifactType,
-      artifactType: routed.artifactType,
-      mode: routed.mode,
-      rtl: routed.rtl,
-    },
+    metadata: { ...metadataFor(routed, skillVersions), estimatedTokens },
   };
 }
