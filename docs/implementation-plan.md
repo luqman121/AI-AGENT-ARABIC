@@ -1,5 +1,39 @@
 # Wakil M0-M2 Implementation Plan
 
+## Arabic agent workspace UI upgrade (2026-07-23)
+
+- **Scope:** upgrade the existing production-oriented Wakil repository in place toward a polished
+  Arabic-first, mobile-first agent workspace. This run preserves the current backend contracts:
+  Auth.js, PostgreSQL/Drizzle, BullMQ, persisted run events/SSE, private S3/R2 artifacts, tenant
+  authorization, admin dashboard, worker boundaries, and the current static-site artifact
+  capability.
+- **Architecture discovered:** pnpm/Turborepo monorepo; `apps/web` is Next.js 16 App Router with
+  Arabic RTL root and server actions/API routes; `apps/worker` processes bounded planning/execution
+  jobs; `packages/db` owns Drizzle schema/migrations for workspaces, projects, conversations,
+  attachments, runs, run events, artifacts, usage, and audit; `packages/shared` owns Zod contracts
+  and run event labels; `packages/ui` owns reusable RTL components and design tokens; private
+  artifact previews/downloads are served via server-side signed URLs.
+- **Reference audit:** Adorable (MIT), bolt.diy (MIT), Onlook (Apache-2.0), and Vibra Code
+  (AGPL-3.0) were shallow-cloned outside the source tree under `/tmp/wakil-open-source-refs`. No
+  source was copied. Details are recorded in `docs/OPEN_SOURCE_REFERENCES.md`.
+- **Implementation slices:** (1) document open-source references and license boundaries, (2) add the
+  missing presentation shortcut while keeping unsupported output types disabled, (3) enhance the
+  project workspace into a desktop split layout with recent-project navigation and preview/result
+  side panel while retaining the existing mobile-first chat/composer flow, and (4) add preview
+  viewport controls for desktop/tablet/mobile without exposing object keys or changing signed URL
+  authorization.
+- **Assumptions:** broad PDF/spreadsheet/presentation/image/audio generation remains unavailable
+  until backend capabilities exist; unsupported shortcuts stay disabled and labeled truthfully.
+  Visual editing remains reference-only/feature-flag future work. No database migration is required.
+- **Verification plan:** run formatting check, lint, strict typecheck, unit tests, production build,
+  and the relevant Playwright/e2e smoke if services are available. Browser verification must inspect
+  the Arabic home/workspace/preview at mobile and desktop sizes, with RTL/LTR boundaries and console
+  errors checked.
+- **Acceptance:** user can still create a real project/run from the Arabic composer, existing real
+  run events remain the progress source, refresh restores project state, preview/download remain
+  tenant-authorized, desktop users get practical navigation/preview structure, mobile users keep a
+  full-width conversation and sticky composer, and open-source attribution is documented.
+
 ## M3 production release readiness (2026-07-18)
 
 - **Scope:** prepare the existing web, worker, PostgreSQL, Redis, and private Cloudflare R2 system
