@@ -1,7 +1,8 @@
 import {
   generatePlanningTurn,
-  generateStaticSite,
+  generateStaticSiteWithReview,
   type PlanningLimits,
+  type SkillsRuntimeRunInfo,
   type StaticSiteGenerationLimits,
 } from "@wakil/agent-core";
 import {
@@ -40,15 +41,67 @@ type ExecutionDeps = {
   sandboxLimits: SandboxLimits;
 };
 
+/**
+ * Feature-flagged Skills Runtime configuration for website generation. Off
+ * (`enabled: false` or omitted) reproduces the exact legacy prompt path.
+ */
+export type SkillsRuntimeConfig = {
+  enabled: boolean;
+  maxPromptTokens?: number;
+  maxRepairAttempts?: number;
+};
+
+/** Minimal structured-logging seam; defaults to a no-op so tests need not supply one. */
+export type ProcessorLogger = {
+  info: (fields: Record<string, unknown>, message: string) => void;
+};
+
 export type ProcessorDeps = {
   adapter: ModelProviderAdapter;
   db: Database;
   execution?: ExecutionDeps;
   limits: PlanningLimits;
+  logger?: ProcessorLogger;
   model: string;
   modelConfigKey: string;
   redis: Redis;
+  skillsRuntime?: SkillsRuntimeConfig;
 };
+
+const noopLogger: ProcessorLogger = { info: () => {} };
+
+/**
+ * Logs admin-only skills-runtime metadata (ids, versions, token estimate,
+ * review outcome) — never the customer's request text, the full prompt, or
+ * raw skill instruction bodies.
+ */
+function logSkillsRuntime(
+  deps: ProcessorDeps,
+  runId: string,
+  info: SkillsRuntimeRunInfo,
+  review?: { passed: boolean; score: number; repairAttempts: number },
+): void {
+  if (!info.enabled) return;
+  (deps.logger ?? noopLogger).info(
+    {
+      artifactType: info.artifactType,
+      estimatedInstructionTokens: info.estimatedInstructionTokens,
+      fallbackUsed: info.fallbackUsed,
+      locale: info.locale,
+      modelProvider: deps.modelConfigKey,
+      promptVersion: info.promptVersion,
+      review,
+      rtl: info.rtl,
+      runId,
+      skillIds: info.skillIds,
+      skillVersions: info.skillVersions,
+      skipped: info.skipped,
+      used: info.used,
+      validationProfile: info.validationProfile,
+    },
+    "skills_runtime.website",
+  );
+}
 
 function payloadFor(
   input: AppendRunEventInput,
@@ -286,14 +339,43 @@ async function processExecutionRun(
     workspaceId: job.workspaceId,
     type: "artifact.generating",
   });
-  const generated = await generateStaticSite({
+  const runtimeFlag = deps.skillsRuntime;
+  const generated = await generateStaticSiteWithReview({
     adapter: deps.adapter,
+    ...(runtimeFlag?.enabled
+      ? {
+          designReview: {
+            enabled: true,
+            ...(runtimeFlag.maxRepairAttempts !== undefined
+              ? { maxRepairAttempts: runtimeFlag.maxRepairAttempts }
+              : {}),
+          },
+          skillsRuntime: {
+            enabled: true,
+            ...(runtimeFlag.maxPromptTokens !== undefined
+              ? { maxPromptTokens: runtimeFlag.maxPromptTokens }
+              : {}),
+          },
+        }
+      : {}),
     isCancelled: () => isCancelRequested(deps, job.runId),
     limits: execution.generationLimits,
     model: deps.model,
     reviewedPlan: plan.content,
     userRequest: request.content,
   });
+  logSkillsRuntime(
+    deps,
+    job.runId,
+    generated.skillsRuntime,
+    generated.review
+      ? {
+          passed: generated.review.passed,
+          repairAttempts: generated.repairAttempts,
+          score: generated.review.score,
+        }
+      : undefined,
+  );
   if (!generated.ok) {
     if (generated.code === "cancelled") {
       return finalizeFailure(
@@ -310,6 +392,21 @@ async function processExecutionRun(
       job,
       generated.attempts,
       failureErrorCode(generated.code),
+      "failed",
+      STATIC_SITE_PROMPT_VERSION,
+    );
+  }
+
+  // The Design Critic gate: a design must not be marked ready while blocking
+  // issues remain, even after the bounded repair passes. This never fires
+  // when the skills runtime is disabled (`generated.review` is only set when
+  // design review was enabled), so the legacy path is entirely unaffected.
+  if (generated.review && !generated.review.passed) {
+    return finalizeFailure(
+      deps,
+      job,
+      generated.attempts,
+      "DESIGN_VALIDATION_FAILED",
       "failed",
       STATIC_SITE_PROMPT_VERSION,
     );

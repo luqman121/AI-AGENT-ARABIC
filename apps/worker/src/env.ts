@@ -8,6 +8,18 @@ const optionalString = z.preprocess(
   z.string().min(1).optional(),
 );
 const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.url().optional());
+/**
+ * Strict boolean flag: only the literal strings "true"/"false" (or unset)
+ * are accepted, avoiding the classic `z.coerce.boolean()` footgun where any
+ * non-empty string — including the literal text "false" — coerces to true.
+ */
+const booleanFlag = (defaultValue: boolean) =>
+  z
+    .preprocess(
+      (value) => (value === "" || value === undefined ? String(defaultValue) : value),
+      z.enum(["true", "false"]),
+    )
+    .transform((value) => value === "true");
 const postgresUrl = z
   .url()
   .refine((value) => value.startsWith("postgres://") || value.startsWith("postgresql://"), {
@@ -80,6 +92,14 @@ const workerEnvSchema = z
     REDIS_URL: redisUrl,
     WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
     WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+    // Feature flag: routes website generation through the Skills Runtime
+    // (skill selection + Design Critic repair loop) instead of the legacy
+    // static-site prompt path. Off by default; a runtime compilation
+    // failure always falls back to the legacy path rather than failing the
+    // run. See docs/agent-skills-sources.md and CHANGELOG.md.
+    AGENT_SKILLS_RUNTIME_ENABLED: booleanFlag(false),
+    AGENT_SKILLS_MAX_PROMPT_TOKENS: z.coerce.number().int().positive().max(50_000).default(6_000),
+    AGENT_SKILLS_MAX_REPAIR_ATTEMPTS: z.coerce.number().int().min(0).max(2).default(1),
   })
   .superRefine((env, ctx) => {
     const prefix = env.MODEL_PROVIDER.toUpperCase();

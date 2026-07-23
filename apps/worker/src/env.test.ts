@@ -31,6 +31,30 @@ describe("readWorkerEnv", () => {
     expect(result.NODE_ENV).toBe("development");
     expect(result.WORKER_CONCURRENCY).toBe(4);
     expect(result.WORKER_HEALTH_PORT).toBe(3001);
+    // The skills runtime feature flag defaults to off.
+    expect(result.AGENT_SKILLS_RUNTIME_ENABLED).toBe(false);
+    expect(result.AGENT_SKILLS_MAX_REPAIR_ATTEMPTS).toBe(1);
+  });
+
+  it("parses the skills runtime flag strictly (true/false only, defaulting to false)", () => {
+    const base = {
+      DATABASE_URL: "postgres://wakil:local@127.0.0.1:5432/wakil",
+      REDIS_URL: "redis://127.0.0.1:6379",
+      ...modelEnv,
+      ...storageEnv,
+    };
+    expect(readWorkerEnv(base).AGENT_SKILLS_RUNTIME_ENABLED).toBe(false);
+    expect(
+      readWorkerEnv({ ...base, AGENT_SKILLS_RUNTIME_ENABLED: "true" }).AGENT_SKILLS_RUNTIME_ENABLED,
+    ).toBe(true);
+    expect(
+      readWorkerEnv({ ...base, AGENT_SKILLS_RUNTIME_ENABLED: "false" })
+        .AGENT_SKILLS_RUNTIME_ENABLED,
+    ).toBe(false);
+    // Unlike z.coerce.boolean(), an arbitrary truthy string is rejected, not coerced to true.
+    expect(() => readWorkerEnv({ ...base, AGENT_SKILLS_RUNTIME_ENABLED: "yes" })).toThrowError(
+      /AGENT_SKILLS_RUNTIME_ENABLED/,
+    );
   });
 
   it("validates database and Redis protocols and operational limits", () => {

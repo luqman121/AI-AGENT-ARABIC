@@ -133,9 +133,15 @@ async function main(): Promise<void> {
               },
             },
             limits: configuredModel.limits,
+            logger,
             model: configuredModel.model,
             modelConfigKey: configuredModel.configKey,
             redis: eventPublisher,
+            skillsRuntime: {
+              enabled: env.AGENT_SKILLS_RUNTIME_ENABLED,
+              maxPromptTokens: env.AGENT_SKILLS_MAX_PROMPT_TOKENS,
+              maxRepairAttempts: env.AGENT_SKILLS_MAX_REPAIR_ATTEMPTS,
+            },
           },
           job.data,
         );
