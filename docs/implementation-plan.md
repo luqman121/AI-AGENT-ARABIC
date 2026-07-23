@@ -1,5 +1,75 @@
 # Wakil M0-M2 Implementation Plan
 
+## M3.1 Arabic agent workspace experience (2026-07-23)
+
+The repository audit is recorded in `docs/arabic-agent-workspace-audit.md`. This slice upgrades the
+existing real website flow in place; it does not introduce new generators or backend contracts.
+
+### Phase 1 — Audit and references
+
+- Reconfirm auth, tenancy, project/run/event, queue, storage, worker, Docker, CI, and test
+  boundaries.
+- Inspect Adorable, bolt.diy, Onlook, and Vibra Code only in `/tmp/wakil-open-source-refs`.
+- Record license, studied behavior, code reuse (none), affected Wakil files, attribution, and
+  concerns.
+
+### Phase 2 — Foundations
+
+- Add a small Arabic messages/capabilities layer for the home/workspace/result flow.
+- Keep `static_site` as the only enabled output capability until real backend generators exist.
+- Add a disabled visual-editing feature flag; do not expose a disconnected editor.
+- Preserve the existing semantic tokens, Cairo setup, `lang="ar" dir="rtl"`, and explicit LTR
+  islands.
+
+### Phase 3 — Home and composer
+
+- Use the requested prompt-first Arabic headline and supporting sentence.
+- Keep the existing multiline, keyboard, attachment, image, audio-recording, validation, upload,
+  idempotency, and safe-area behavior.
+- Add tenant-scoped recent projects to the authenticated home using `listProjects`.
+- Explain unavailable output shortcuts truthfully without restricting free-form input.
+
+### Phase 4 — Workspace
+
+- Preserve the desktop project/conversation/preview split and real project navigation.
+- Add a compact mobile workspace switcher for conversation, dedicated full-screen preview, and real
+  activity; do not squeeze code or a desktop sidebar onto mobile.
+- Add jump-to-latest behavior without breaking the sticky composer or automatic scroll on new data.
+- Keep progress mapped only from persisted `RunEventPayload` values and preserve SSE replay,
+  duplicate protection, reconnection state, cancellation, retry, and refresh recovery.
+
+### Phase 5 — Preview and artifacts
+
+- Extract focused preview controls for viewport selection, stable authorized-link copying, refresh,
+  open-in-new-tab, and browser full-screen.
+- Keep the signed artifact URL server-generated, short lived, sandboxed, and on a separate origin.
+- Make artifact-result copy/icon/action presentation generic by real `kind`; do not claim publish,
+  GitHub, visual editing, or non-existent output generators.
+
+### Phase 6 — Advanced tools
+
+- No new files/code/log/terminal UI is added in this slice because the backend does not expose safe
+  project-source browsing or shell input contracts. Existing user-safe execution details remain the
+  only advanced surface.
+- Visual editing stays disabled behind a feature flag for a later architecture milestone.
+
+### Phase 7 — QA and local delivery
+
+- Add focused tests for capability metadata, Arabic home rendering, recent projects, mobile
+  workspace navigation, jump-to-latest, preview controls, artifact action visibility, and LTR
+  boundaries.
+- Run formatting, lint, typecheck, tests, production build, and Playwright responsive/a11y flows
+  where the local dependency harness is available.
+- Commit logical phases locally on `feat/arabic-agent-workspace-ui`.
+- Do not push or deploy production in this task.
+
+### Acceptance
+
+The real Arabic website journey remains tenant-authorized end to end; unsupported output types stay
+truthfully unavailable; mobile navigation does not compress desktop UI; preview and artifact actions
+remain authorized; progress stays event-driven; no fake production behavior, backend replacement,
+database migration, remote push, or deployment is introduced.
+
 ## M3 production release readiness (2026-07-18)
 
 - **Scope:** prepare the existing web, worker, PostgreSQL, Redis, and private Cloudflare R2 system

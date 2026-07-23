@@ -106,7 +106,7 @@ The ingress must preserve the canonical host and HTTPS forwarding headers. `SMTP
 | `SANDBOX_COMMAND_TIMEOUT_SECONDS`             | Per-command sandbox timeout                              | worker | no; bounded default      | non-secret, server-only |
 | `SANDBOX_MAX_DURATION_MS`                     | Total sandbox duration cap                               | worker | no; bounded default      | non-secret, server-only |
 | `SANDBOX_TTL_MINUTES`                         | Ephemeral sandbox TTL                                    | worker | no; bounded default      | non-secret, server-only |
-| `ARTIFACT_MAX_ZIP_BYTES`                      | ZIP upload size cap                                      | worker | no; bounded default      | non-secret, server-only |
+| `ARTIFACT_MAX_ZIP_BYTES`                      | Download artifact size cap (ZIP/PDF/Office)              | worker | no; bounded default      | non-secret, server-only |
 
 Do not configure unselected provider credentials. Base URL overrides require a security review; omit
 them to use the adapter defaults.

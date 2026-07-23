@@ -18,6 +18,7 @@ test("complete M1 journey: sign in, create, append, rename, search, archive, per
 
   // Sign in with email + password (account created on first use).
   await signIn(page, email);
+  await expect(page.getByRole("heading", { name: "ماذا تريد من وكيل أن ينجز لك؟" })).toBeVisible();
 
   // Create a database-backed project from a single idea.
   await page.getByLabel("اوصف فكرتك").fill(request);
@@ -30,6 +31,8 @@ test("complete M1 journey: sign in, create, append, rename, search, archive, per
   // announcer; scope to the saved user message bubble specifically.
   await expect(page.getByLabel("طلبك").getByText("قائمة الطعام")).toBeVisible();
   const projectUrl = page.url();
+  await expect(page.getByRole("navigation", { name: "أقسام مساحة العمل" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "المعاينة" })).toHaveAttribute("href", /\/preview$/);
 
   // Append an additional requirement.
   await page.getByLabel("أضف متطلبات إضافية").fill("أضف صفحة تواصل مع خريطة الموقع");
@@ -70,6 +73,11 @@ test("complete M1 journey: sign in, create, append, rename, search, archive, per
   await expect(page.getByText("لا توجد معاينة بعد")).toBeVisible();
   await page.goto("/usage");
   await expect(page.getByText("لا يوجد استخدام بعد")).toBeVisible();
+
+  // The prompt-first home restores tenant-scoped recent projects.
+  await page.goto("/new");
+  await expect(page.getByRole("heading", { name: "مشاريعك الأخيرة" })).toBeVisible();
+  await expect(page.getByRole("link", { name: new RegExp(renamedTitle) })).toBeVisible();
 
   // Account shows the real session identity with LTR isolation.
   await page.goto("/account");

@@ -1,0 +1,2 @@
+ALTER TABLE "artifacts" DROP CONSTRAINT "artifacts_size_check";--> statement-breakpoint
+ALTER TABLE "artifacts" ADD CONSTRAINT "artifacts_size_check" CHECK ("artifacts"."preview_size_bytes" between 1 and 500000 and "artifacts"."download_size_bytes" between 1 and 25000000);

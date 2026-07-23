@@ -24,6 +24,14 @@ export type RunMutationDeps = {
   enqueueRun: (job: RunJobData) => Promise<void>;
 };
 
+const EXECUTABLE_OUTPUT_KINDS = new Set([
+  "static_site",
+  "pdf",
+  "document",
+  "spreadsheet",
+  "presentation",
+]);
+
 class ServiceFailure extends Error {
   constructor(readonly result: ActionFailure) {
     super(result.code);
@@ -100,6 +108,13 @@ export async function startRun(
       if (!project) throw new ServiceFailure(failure("NOT_FOUND"));
       if (project.status !== "active") {
         throw new ServiceFailure(failure("PROJECT_ARCHIVED"));
+      }
+      if (!EXECUTABLE_OUTPUT_KINDS.has(project.outputKind)) {
+        throw new ServiceFailure(
+          failure("VALIDATION_FAILED", {
+            outputKind: "نوع النتيجة المطلوب غير متاح للتنفيذ حاليًا.",
+          }),
+        );
       }
 
       const conversation = (

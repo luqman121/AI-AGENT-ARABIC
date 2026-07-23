@@ -82,7 +82,7 @@ const workerEnvSchema = z
     SANDBOX_COMMAND_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(120).default(30),
     SANDBOX_MAX_DURATION_MS: z.coerce.number().int().min(10_000).max(600_000).default(120_000),
     SANDBOX_TTL_MINUTES: z.coerce.number().int().min(1).max(15).default(3),
-    ARTIFACT_MAX_ZIP_BYTES: z.coerce.number().int().min(1_000).max(2_000_000).default(1_000_000),
+    ARTIFACT_MAX_ZIP_BYTES: z.coerce.number().int().min(1_000).max(25_000_000).default(20_000_000),
     S3_ACCESS_KEY_ID: z.string().min(1),
     S3_BUCKET: z.string().min(1),
     S3_ENDPOINT: z.url(),

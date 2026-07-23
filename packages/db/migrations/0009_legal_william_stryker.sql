@@ -1,0 +1,2 @@
+ALTER TABLE "artifacts" DROP CONSTRAINT "artifacts_kind_check";--> statement-breakpoint
+ALTER TABLE "artifacts" ADD CONSTRAINT "artifacts_kind_check" CHECK ("artifacts"."kind" in ('static_site', 'web_app', 'pdf', 'document', 'spreadsheet', 'presentation', 'image', 'audio', 'file'));

@@ -4,6 +4,7 @@ import {
   runEventPayloadSchema,
   type RunEventPayload,
   type RunKind,
+  type OutputKind,
   type RunStatus,
 } from "@wakil/shared";
 import { Button, StatusBanner } from "@wakil/ui";
@@ -33,6 +34,7 @@ export type RunPanelProps = {
   initialEvents: RunEventPayload[];
   initialRun: RunPanelSummary | null;
   artifacts: ArtifactResultSummary[];
+  outputKind: string;
   projectId: string;
   projectTitle: string;
 };
@@ -43,6 +45,7 @@ export function RunPanel({
   autoStart,
   initialEvents,
   initialRun,
+  outputKind,
   projectId,
   projectTitle,
 }: RunPanelProps) {
@@ -58,20 +61,21 @@ export function RunPanel({
   const seenRef = useRef(new Set(initialEvents.map((event) => event.seq)));
   const hydratedRunIdRef = useRef(initialRun?.id);
   const autoStartedRef = useRef(false);
-  const runKindRef = useRef<RunKind | null>(initialRun?.kind ?? null);
-  const autoExecutedForRef = useRef<string | null>(null);
 
   const runId = run?.id;
+  const executionLabel: Partial<Record<OutputKind, string>> = {
+    document: "ابدأ إنشاء المستند",
+    pdf: "ابدأ إنشاء PDF",
+    presentation: "ابدأ إنشاء العرض",
+    spreadsheet: "ابدأ إنشاء Excel",
+    static_site: "ابدأ إنشاء الموقع",
+  };
   const isActive = run !== null && ACTIVE_STATUSES.has(run.status);
   const cancelRequested = Boolean(run?.cancelRequestedAtIso);
   const nextKind: RunKind =
     run?.kind === "execution" || (run?.kind === "planning" && run.status === "succeeded")
       ? "execution"
       : "planning";
-
-  useEffect(() => {
-    runKindRef.current = run?.kind ?? null;
-  }, [run]);
 
   const applyEvent = useCallback(
     (payload: RunEventPayload) => {
@@ -93,10 +97,9 @@ export function RunPanel({
             : current,
         );
       }
-      // Planning success flows straight into execution (handled by the
-      // auto-continue effect); only refresh for execution success, which is
-      // when the persisted artifact becomes available to load.
-      if (payload.type === "run.succeeded" && runKindRef.current === "execution") {
+      // Refresh every successful run: planning success persists the reviewable
+      // assistant plan, while execution success persists the artifact.
+      if (payload.type === "run.succeeded") {
         router.refresh();
       }
     },
@@ -146,19 +149,6 @@ export function RunPanel({
     // Fires once: the guard ref, not the dependency list, decides re-entry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, archived, run]);
-
-  // Fully automatic: a succeeded planning run continues straight into the
-  // website build with no manual tap. Guarded per planning-run id so it fires
-  // exactly once and never loops on a failed execution.
-  useEffect(() => {
-    if (archived || !run) return;
-    if (run.kind !== "planning" || run.status !== "succeeded") return;
-    if (artifacts.length > 0) return;
-    if (autoExecutedForRef.current === run.id) return;
-    autoExecutedForRef.current = run.id;
-    start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run, archived, artifacts.length]);
 
   function start(): void {
     if (pending) return;
@@ -238,19 +228,13 @@ export function RunPanel({
               ? "تعذّر حفظ ملفات النتيجة بشكل خاص. يمكنك إعادة المحاولة."
               : "تعذّر إكمال العمل. يمكنك إعادة المحاولة.";
 
-  // "Working" spans the whole automatic flow: an active run, the brief window
-  // where a succeeded plan is handing off to the build, and the pre-run instant
-  // right after creation before the first run exists.
-  const working =
-    !archived &&
-    (isActive ||
-      (run?.kind === "planning" && run.status === "succeeded" && artifacts.length === 0) ||
-      (!run && autoStart));
+  const planReady = run?.kind === "planning" && run.status === "succeeded";
+  const working = !archived && (isActive || (!run && autoStart));
   const isFailed = run?.status === "failed";
   const isCancelled = run?.status === "cancelled";
 
   return (
-    <section aria-label="حالة الوكيل" className="mb-4">
+    <section id="activity" aria-label="حالة الوكيل" className="mb-4 scroll-mt-32">
       {working ? (
         <AgentWorking
           runKind={run?.kind ?? "planning"}
@@ -294,6 +278,12 @@ export function RunPanel({
         </StatusBanner>
       ) : null}
 
+      {planReady && artifacts.length === 0 ? (
+        <StatusBanner className="mb-3" tone="info">
+          الخطة جاهزة للمراجعة. ابدأ الإنشاء عندما تتأكد من اتجاه المشروع.
+        </StatusBanner>
+      ) : null}
+
       {artifacts.length > 0 ? (
         <div className="mb-2 flex flex-col gap-3" aria-label="نتائج المشروع">
           {artifacts.map((artifact, index) => (
@@ -302,7 +292,6 @@ export function RunPanel({
               key={artifact.id}
               projectId={projectId}
               primary={index === 0}
-              onRebuild={index === 0 && !archived ? start : undefined}
               rebuilding={pending}
               title={index === 0 ? projectTitle : `${projectTitle} — إصدار سابق`}
             />
@@ -320,6 +309,10 @@ export function RunPanel({
           disabled={cancelRequested}
         >
           {cancelRequested ? "تم طلب الإلغاء" : "إلغاء التشغيل"}
+        </Button>
+      ) : planReady ? (
+        <Button className="w-full" onClick={start} loading={pending}>
+          {executionLabel[outputKind as OutputKind] ?? "ابدأ التنفيذ"}
         </Button>
       ) : isFailed ? (
         <Button className="w-full" onClick={start} loading={pending}>

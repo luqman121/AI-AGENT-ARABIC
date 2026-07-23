@@ -1,7 +1,20 @@
 import { Button } from "@wakil/ui";
-import { Check, Globe, MonitorPlay, RefreshCw } from "lucide-react";
+import {
+  AudioLines,
+  Check,
+  FileArchive,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Globe,
+  MonitorPlay,
+  PanelsTopLeft,
+  Presentation,
+  RefreshCw,
+} from "lucide-react";
 import Link from "next/link";
 
+import { artifactPresentation } from "../../../../src/product/artifact-presentations";
 import { ArtifactActions } from "./artifact-actions";
 
 export type ArtifactResultSummary = {
@@ -11,13 +24,17 @@ export type ArtifactResultSummary = {
   kind: string;
 };
 
-const KIND_LABELS: Record<string, string> = {
-  document: "مستند",
-  image: "صورة",
-  presentation: "عرض تقديمي",
-  spreadsheet: "جدول بيانات",
-  static_site: "موقع ويب",
-};
+const RESULT_ICONS = {
+  audio: AudioLines,
+  document: FileText,
+  file: FileArchive,
+  image: FileImage,
+  pdf: FileText,
+  presentation: Presentation,
+  spreadsheet: FileSpreadsheet,
+  static_site: Globe,
+  web_app: PanelsTopLeft,
+} as const;
 
 export type ArtifactResultCardProps = {
   artifact: ArtifactResultSummary;
@@ -44,26 +61,39 @@ export function ArtifactResultCard({
   title,
 }: ArtifactResultCardProps) {
   const sizeLabel = (artifact.downloadSizeBytes / 1024).toFixed(1);
-  const kindLabel = KIND_LABELS[artifact.kind] ?? "ملف";
+  const presentation = artifactPresentation(artifact.kind);
+  const ResultIcon = RESULT_ICONS[presentation.kind];
   const previewHref = `/projects/${projectId}/preview?artifact=${artifact.id}`;
 
   if (!primary) {
-    return (
-      <Link
-        href={previewHref}
-        className="wk-focus-ring flex items-center gap-3 rounded-md border border-line bg-card p-3 transition-colors duration-150 hover:bg-overlay"
-      >
+    const content = (
+      <>
         <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-info-subtle text-fg-info">
-          <Globe aria-hidden className="size-5" />
+          <ResultIcon aria-hidden className="size-5" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-bold text-fg">{title}</span>
           <span className="block text-xs text-fg-3">
-            {kindLabel} · <bdi dir="ltr">{sizeLabel}</bdi> كيلوبايت
+            {presentation.label} · <bdi dir="ltr">{sizeLabel}</bdi> كيلوبايت
           </span>
         </span>
-        <MonitorPlay aria-hidden className="size-5 shrink-0 text-fg-3" />
+        {presentation.previewable ? (
+          <MonitorPlay aria-hidden className="size-5 shrink-0 text-fg-3" />
+        ) : null}
+      </>
+    );
+
+    return presentation.previewable ? (
+      <Link
+        href={previewHref}
+        className="wk-focus-ring flex items-center gap-3 rounded-md border border-line bg-card p-3 transition-colors duration-150 hover:bg-overlay"
+      >
+        {content}
       </Link>
+    ) : (
+      <div className="flex items-center gap-3 rounded-md border border-line bg-card p-3">
+        {content}
+      </div>
     );
   }
 
@@ -74,41 +104,52 @@ export function ArtifactResultCard({
           <Check aria-hidden className="size-6" />
         </span>
         <p className="text-lg font-bold leading-7 text-fg">{title}</p>
-        <p className="text-sm leading-6 text-fg-2">موقعك جاهز للمعاينة والتنزيل.</p>
+        <p className="text-sm leading-6 text-fg-2">{presentation.readyCopy}</p>
       </div>
 
-      {/* A stylized website placeholder, not a real screenshot — a true page
-          thumbnail needs a separate capture step Wakil does not produce yet. */}
-      <Link
-        href={previewHref}
-        aria-label="معاينة النتيجة"
-        className="wk-focus-ring relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-lg border border-line bg-page transition-transform duration-200 ease-out active:scale-[0.99] motion-reduce:active:scale-100"
-      >
-        <span aria-hidden className="absolute inset-x-0 top-0 h-2/3 bg-accent-subtle/40 blur-2xl" />
-        <span
-          aria-hidden
-          className="relative w-[72%] overflow-hidden rounded-md border border-line-strong bg-raised"
+      {presentation.previewable ? (
+        /* A stylized website placeholder, not a real screenshot — a true page
+           thumbnail needs a separate capture step Wakil does not produce yet. */
+        <Link
+          href={previewHref}
+          aria-label="معاينة النتيجة"
+          className="wk-focus-ring relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-lg border border-line bg-page transition-transform duration-200 ease-out active:scale-[0.99] motion-reduce:active:scale-100"
         >
-          <span className="flex gap-1 border-b border-line px-2.5 py-2">
-            <span className="size-1.5 rounded-full bg-line-strong" />
-            <span className="size-1.5 rounded-full bg-line-strong" />
-            <span className="size-1.5 rounded-full bg-line-strong" />
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-2/3 bg-accent-subtle/40 blur-2xl"
+          />
+          <span
+            aria-hidden
+            className="relative w-[72%] overflow-hidden rounded-md border border-line-strong bg-raised"
+          >
+            <span className="flex gap-1 border-b border-line px-2.5 py-2">
+              <span className="size-1.5 rounded-full bg-line-strong" />
+              <span className="size-1.5 rounded-full bg-line-strong" />
+              <span className="size-1.5 rounded-full bg-line-strong" />
+            </span>
+            <span className="flex flex-col gap-2 p-3">
+              <span className="block h-1.5 w-2/3 rounded-full bg-accent-subtle" />
+              <span className="block h-1.5 w-full rounded-full bg-overlay" />
+              <span className="block h-1.5 w-4/5 rounded-full bg-overlay" />
+            </span>
           </span>
-          <span className="flex flex-col gap-2 p-3">
-            <span className="block h-1.5 w-2/3 rounded-full bg-accent-subtle" />
-            <span className="block h-1.5 w-full rounded-full bg-overlay" />
-            <span className="block h-1.5 w-4/5 rounded-full bg-overlay" />
-          </span>
-        </span>
-      </Link>
+        </Link>
+      ) : (
+        <div className="flex min-h-44 items-center justify-center rounded-lg border border-line bg-page">
+          <ResultIcon aria-hidden className="size-14 text-fg-3" />
+        </div>
+      )}
 
       <div className="flex flex-col gap-3">
-        <Button asChild className="min-h-[52px] text-base">
-          <Link href={previewHref}>
-            <MonitorPlay aria-hidden className="size-5" />
-            معاينة النتيجة
-          </Link>
-        </Button>
+        {presentation.previewable ? (
+          <Button asChild className="min-h-[52px] text-base">
+            <Link href={previewHref}>
+              <MonitorPlay aria-hidden className="size-5" />
+              معاينة النتيجة
+            </Link>
+          </Button>
+        ) : null}
 
         <ArtifactActions artifactId={artifact.id} projectId={projectId} title={title} />
 

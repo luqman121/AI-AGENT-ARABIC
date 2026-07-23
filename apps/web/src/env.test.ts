@@ -67,6 +67,14 @@ describe("readWebEnv", () => {
       readWebEnv({ ...validEnv, AUTH_URL: "https://wakil.example", NODE_ENV: "production" })
         .AUTH_URL,
     ).toBe("https://wakil.example");
+    expect(
+      readWebEnv({
+        ...validEnv,
+        ALLOW_INSECURE_HTTP_PREVIEW: "true",
+        AUTH_URL: "http://wakil.example",
+        NODE_ENV: "production",
+      }).ALLOW_INSECURE_HTTP_PREVIEW,
+    ).toBe(true);
   });
 
   it("validates database, Redis, and SMTP credential protocols and pairs", () => {

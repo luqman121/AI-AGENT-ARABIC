@@ -63,7 +63,7 @@ export const artifacts = pgTable(
     ),
     check(
       "artifacts_kind_check",
-      sql`${table.kind} in ('static_site', 'document', 'presentation', 'spreadsheet', 'image')`,
+      sql`${table.kind} in ('static_site', 'web_app', 'pdf', 'document', 'spreadsheet', 'presentation', 'image', 'audio', 'file')`,
     ),
     check(
       "artifacts_title_length_check",
@@ -75,7 +75,7 @@ export const artifacts = pgTable(
     ),
     check(
       "artifacts_size_check",
-      sql`${table.previewSizeBytes} between 1 and 500000 and ${table.downloadSizeBytes} between 1 and 2000000`,
+      sql`${table.previewSizeBytes} between 1 and 500000 and ${table.downloadSizeBytes} between 1 and 25000000`,
     ),
     check(
       "artifacts_checksum_check",

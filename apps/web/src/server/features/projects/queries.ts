@@ -15,6 +15,7 @@ export type ProjectListRecord = {
 
 export type ProjectRecord = {
   id: string;
+  outputKind: string;
   title: string;
   status: "active" | "archived";
   archivedAt: Date | null;
@@ -135,6 +136,7 @@ export async function getProjectById(
         archivedAt: projects.archivedAt,
         createdAt: projects.createdAt,
         id: projects.id,
+        outputKind: projects.outputKind,
         status: projects.status,
         title: projects.title,
         updatedAt: projects.updatedAt,

@@ -17,9 +17,9 @@ export function proxy(request: NextRequest): NextResponse {
   const authenticated = hasSessionCookie(request);
 
   if (PUBLIC_PATHS.has(pathname)) {
-    if (authenticated && pathname.startsWith("/sign-in")) {
-      return NextResponse.redirect(new URL("/new", request.url));
-    }
+    // Never redirect away from sign-in based only on cookie presence. An expired,
+    // malformed, or pre-upgrade JWT must be allowed to reach the sign-in page
+    // instead of creating a /sign-in <-> /new redirect loop.
     return NextResponse.next();
   }
 

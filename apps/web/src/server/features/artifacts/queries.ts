@@ -6,11 +6,26 @@ import type { Database, ServiceContext } from "../types";
 
 export type ArtifactSummary = {
   createdAt: Date;
+  downloadMediaType: string;
   downloadObjectKey: string;
   downloadSizeBytes: number;
+  fileName: string;
   id: string;
   kind: string;
   previewObjectKey: string;
+  title: string;
+};
+
+const artifactSummarySelection = {
+  createdAt: artifacts.createdAt,
+  downloadMediaType: artifacts.downloadMediaType,
+  downloadObjectKey: artifacts.downloadObjectKey,
+  downloadSizeBytes: artifacts.downloadSizeBytes,
+  fileName: artifacts.fileName,
+  id: artifacts.id,
+  kind: artifacts.kind,
+  previewObjectKey: artifacts.previewObjectKey,
+  title: artifacts.title,
 };
 
 export async function getArtifactById(
@@ -24,14 +39,7 @@ export async function getArtifactById(
   return (
     (
       await db
-        .select({
-          createdAt: artifacts.createdAt,
-          downloadObjectKey: artifacts.downloadObjectKey,
-          downloadSizeBytes: artifacts.downloadSizeBytes,
-          id: artifacts.id,
-          kind: artifacts.kind,
-          previewObjectKey: artifacts.previewObjectKey,
-        })
+        .select(artifactSummarySelection)
         .from(artifacts)
         .where(
           and(
@@ -54,14 +62,7 @@ export async function listProjectArtifacts(
   const project = await getProjectById(db, ctx, projectId);
   if (!project) return [];
   return db
-    .select({
-      createdAt: artifacts.createdAt,
-      downloadObjectKey: artifacts.downloadObjectKey,
-      downloadSizeBytes: artifacts.downloadSizeBytes,
-      id: artifacts.id,
-      kind: artifacts.kind,
-      previewObjectKey: artifacts.previewObjectKey,
-    })
+    .select(artifactSummarySelection)
     .from(artifacts)
     .where(and(eq(artifacts.projectId, project.id), eq(artifacts.workspaceId, ctx.workspaceId)))
     .orderBy(desc(artifacts.createdAt))
@@ -79,14 +80,7 @@ export async function getLatestArtifact(
   return (
     (
       await db
-        .select({
-          createdAt: artifacts.createdAt,
-          downloadObjectKey: artifacts.downloadObjectKey,
-          downloadSizeBytes: artifacts.downloadSizeBytes,
-          id: artifacts.id,
-          kind: artifacts.kind,
-          previewObjectKey: artifacts.previewObjectKey,
-        })
+        .select(artifactSummarySelection)
         .from(artifacts)
         .where(and(eq(artifacts.projectId, project.id), eq(artifacts.workspaceId, ctx.workspaceId)))
         .orderBy(desc(artifacts.createdAt))

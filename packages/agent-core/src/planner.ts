@@ -36,7 +36,9 @@ export type PlanningInput = {
   isCancelled: () => Promise<boolean>;
   limits: PlanningLimits;
   model: string;
-  onDelta: (text: string) => Promise<void>;
+  outputKind?: string;
+  onDelta: (textDelta: string) => Promise<void>;
+  sourceContext?: string;
   userRequest: string;
   sleep?: (milliseconds: number) => Promise<void>;
 };
@@ -73,7 +75,10 @@ function defaultSleep(milliseconds: number): Promise<void> {
 }
 
 export async function generatePlanningTurn(input: PlanningInput): Promise<PlanningResult> {
-  const prompt = buildPlanningPrompt(input.userRequest);
+  const prompt = buildPlanningPrompt(input.userRequest, {
+    ...(input.outputKind ? { outputKind: input.outputKind } : {}),
+    ...(input.sourceContext ? { sourceContext: input.sourceContext } : {}),
+  });
   const promptBytes = Buffer.byteLength(
     `${prompt.system}${prompt.developer}${prompt.user}`,
     "utf8",

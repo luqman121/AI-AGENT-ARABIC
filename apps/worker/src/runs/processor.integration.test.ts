@@ -151,12 +151,16 @@ it("keeps a completed plan reviewable, then executes an explicitly started run",
       ...modelDeps,
       execution: {
         artifactStore: {
+          async readPrivateObject() {
+            return new Uint8Array();
+          },
           async uploadBundle(_keys, bundle) {
             uploaded.push({
               previewSize: bundle.preview.sizeBytes,
               zipSize: bundle.zip.sizeBytes,
             });
           },
+          async uploadGeneratedFile() {},
         },
         generationLimits: {
           deadlineMs: 1_000,
@@ -325,7 +329,13 @@ function scriptedModelDeps(options: { siteHtml: string | string[]; captured?: Ca
 }
 
 const executionDeps = {
-  artifactStore: { async uploadBundle() {} },
+  artifactStore: {
+    async readPrivateObject() {
+      return new Uint8Array();
+    },
+    async uploadBundle() {},
+    async uploadGeneratedFile() {},
+  },
   generationLimits: {
     deadlineMs: 1_000,
     inputCostMicrosPerMillionTokens: 1,
@@ -417,9 +427,13 @@ it("fails the run with DESIGN_VALIDATION_FAILED and uploads nothing when the cri
       execution: {
         ...executionDeps,
         artifactStore: {
+          async readPrivateObject() {
+            return new Uint8Array();
+          },
           async uploadBundle() {
             uploaded.push(true);
           },
+          async uploadGeneratedFile() {},
         },
       },
       skillsRuntime: { enabled: true, maxRepairAttempts: 1 },

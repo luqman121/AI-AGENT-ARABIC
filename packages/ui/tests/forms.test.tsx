@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { FileText, Globe } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 
+import { ArtifactTypeScroller } from "../src/components/artifact-type-pill";
 import { Button } from "../src/components/button";
 import { IconButton } from "../src/components/icon-button";
 import { RequestComposer } from "../src/components/request-composer";
@@ -173,5 +175,36 @@ describe("RequestComposer", () => {
     const textarea = screen.getByLabelText("أضف متطلبات إضافية");
     expect(textarea).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText("لم يُحفظ طلبك.")).toBeInTheDocument();
+  });
+});
+
+describe("ArtifactTypeScroller", () => {
+  it("keeps unavailable output types truthful and non-interactive", async () => {
+    const onSelect = vi.fn();
+    render(
+      <ArtifactTypeScroller
+        selectedId="website"
+        onSelect={onSelect}
+        options={[
+          { icon: Globe, id: "website", label: "موقع" },
+          {
+            disabled: true,
+            disabledReason: "يحتاج مولّدًا حقيقيًا في الخادم.",
+            icon: FileText,
+            id: "pdf",
+            label: "PDF",
+          },
+        ]}
+      />,
+    );
+
+    const unavailable = screen.getByRole("tab", { name: /PDF/ });
+    expect(unavailable).toHaveAttribute("aria-disabled", "true");
+    expect(unavailable).toHaveAttribute("title", expect.stringContaining("مولّدًا حقيقيًا"));
+    await userEvent.click(unavailable);
+    expect(onSelect).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("tab", { name: "موقع" }));
+    expect(onSelect).toHaveBeenCalledWith("website");
   });
 });

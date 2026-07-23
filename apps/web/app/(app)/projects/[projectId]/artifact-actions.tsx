@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@wakil/ui";
-import { Check, Download, Share2 } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 import { useState } from "react";
 
 export function ArtifactActions({
@@ -15,18 +15,12 @@ export function ArtifactActions({
 }) {
   const [shareState, setShareState] = useState<"copied" | "error" | "idle">("idle");
 
-  async function share() {
+  async function copyPrivateLink() {
     const url = `${window.location.origin}/projects/${projectId}/preview?artifact=${artifactId}`;
     try {
-      if (navigator.share) {
-        await navigator.share({ text: "نتيجة أنشأها وكيل", title, url });
-        setShareState("idle");
-        return;
-      }
       await navigator.clipboard.writeText(url);
       setShareState("copied");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
+    } catch {
       setShareState("error");
     }
   }
@@ -40,17 +34,25 @@ export function ArtifactActions({
             تنزيل النتيجة
           </a>
         </Button>
-        <Button type="button" variant="secondary" onClick={share}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={copyPrivateLink}
+          aria-label={`نسخ رابط خاص إلى ${title}`}
+        >
           {shareState === "copied" ? (
             <Check aria-hidden className="size-5" />
           ) : (
-            <Share2 aria-hidden className="size-5" />
+            <Copy aria-hidden className="size-5" />
           )}
-          {shareState === "copied" ? "تم نسخ الرابط" : "مشاركة"}
+          {shareState === "copied" ? "تم نسخ الرابط الخاص" : "نسخ رابط خاص"}
         </Button>
       </div>
+      <p className="mt-2 text-xs leading-5 text-fg-3">
+        الرابط خاص بحسابك ويتطلب تسجيل الدخول إلى مساحة العمل.
+      </p>
       <p aria-live="polite" className="min-h-5 text-xs text-fg-3" role="status">
-        {shareState === "error" ? "تعذرت المشاركة. انسخ رابط المشروع من شريط المتصفح." : ""}
+        {shareState === "error" ? "تعذر نسخ الرابط. انسخه من شريط المتصفح." : ""}
       </p>
     </>
   );

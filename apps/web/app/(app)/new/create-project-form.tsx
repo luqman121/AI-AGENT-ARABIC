@@ -1,6 +1,5 @@
 "use client";
 
-import type { OutputKind } from "@wakil/shared";
 import {
   ArtifactTypeScroller,
   RequestComposer,
@@ -10,9 +9,11 @@ import {
 import {
   FileSpreadsheet,
   FileText,
+  GalleryVerticalEnd,
   Globe,
   Image as ImageIcon,
   MoreHorizontal,
+  ScanText,
   Smartphone,
   Volume2,
 } from "lucide-react";
@@ -20,6 +21,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { newIdempotencyKey } from "../../../src/lib/idempotency-key";
+import {
+  OUTPUT_CAPABILITIES,
+  outputCapabilityById,
+} from "../../../src/product/output-capabilities";
+import { arMessages } from "../../../src/product/messages.ar";
 import { createProjectAction } from "../../../src/server/actions/projects";
 
 type DraftAttachment = ComposerAttachment & {
@@ -27,89 +33,30 @@ type DraftAttachment = ComposerAttachment & {
   serverId?: string | undefined;
 };
 
-type CreationOption = ArtifactTypeOption & {
-  outputKind: OutputKind;
-  placeholder: string;
-  accept: string;
-};
+const CAPABILITY_ICONS = {
+  app: Smartphone,
+  audio: Volume2,
+  document: FileText,
+  excel: FileSpreadsheet,
+  image: ImageIcon,
+  other: MoreHorizontal,
+  pdf: FileText,
+  presentation: GalleryVerticalEnd,
+  website: Globe,
+} as const;
 
-const CREATION_TYPES: CreationOption[] = [
-  {
-    accept: "image/*,application/pdf,text/plain,.doc,.docx",
-    icon: Globe,
-    id: "website",
-    label: "موقع",
-    outputKind: "static_site",
-    placeholder: "مثال: أنشئ لي موقعًا احترافيًا لشركة مقاولات مع صفحة خدمات ونموذج تواصل…",
-  },
-  {
-    accept: "image/*,application/pdf,text/plain,.doc,.docx",
-    disabled: true,
-    icon: Smartphone,
-    id: "app",
-    label: "تطبيق",
-    outputKind: "web_app",
-    placeholder: "مثال: أنشئ تطبيقًا لإدارة طلبات متجر صغير مع لوحة متابعة واضحة…",
-  },
-  {
-    accept: "image/*,application/pdf,text/plain,.doc,.docx",
-    disabled: true,
-    icon: FileText,
-    id: "pdf",
-    label: "PDF",
-    outputKind: "pdf",
-    placeholder: "مثال: جهّز تقرير PDF عربيًا منظمًا عن أداء المبيعات لهذا الشهر…",
-  },
-  {
-    accept: ".csv,.xls,.xlsx,text/plain,application/pdf",
-    disabled: true,
-    icon: FileSpreadsheet,
-    id: "excel",
-    label: "Excel",
-    outputKind: "spreadsheet",
-    placeholder: "مثال: أنشئ ملف Excel لحساب المبيعات والمصاريف وصافي الربح…",
-  },
-  {
-    accept: "image/*,application/pdf,text/plain",
-    disabled: true,
-    icon: ImageIcon,
-    id: "image",
-    label: "صورة",
-    outputKind: "image",
-    placeholder: "مثال: أنشئ صورة إعلانية فاخرة لعطر عربي بخلفية داكنة…",
-  },
-  {
-    accept: "audio/*,text/plain,application/pdf,.doc,.docx",
-    disabled: true,
-    icon: Volume2,
-    id: "audio",
-    label: "صوت",
-    outputKind: "audio",
-    placeholder: "مثال: حوّل هذا النص إلى تعليق صوتي عربي هادئ وواضح…",
-  },
-  {
-    accept: "image/*,application/pdf,text/plain,.doc,.docx",
-    disabled: true,
-    icon: FileText,
-    id: "document",
-    label: "مستند",
-    outputKind: "document",
-    placeholder: "مثال: اكتب عرضًا تجاريًا عربيًا منظمًا لخدمة إدارة الإعلانات…",
-  },
-  {
-    accept: "image/*,audio/*,application/pdf,text/plain,.doc,.docx,.xls,.xlsx",
-    disabled: true,
-    icon: MoreHorizontal,
-    id: "other",
-    label: "أخرى",
-    outputKind: "other",
-    placeholder: "اكتب ما تريد من وكيل أن ينجزه، وأضف الملفات التي تساعده…",
-  },
+const CREATION_TYPES: ArtifactTypeOption[] = [
+  ...OUTPUT_CAPABILITIES.filter((capability) => capability.enabled).map((capability) => ({
+    icon: CAPABILITY_ICONS[capability.id],
+    id: capability.id,
+    label: capability.label,
+  })),
+  { icon: ScanText, id: "analyze-document", label: "تحليل مستند" },
 ];
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ALLOWED_ATTACHMENT =
-  /^(image\/(jpeg|png|webp)|audio\/(webm|mpeg|wav|mp4)|application\/pdf|text\/plain|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|vnd\.ms-excel))$/;
+  /^(image\/(jpeg|png|webp)|audio\/(webm|mpeg|wav|mp4)|application\/pdf|text\/(plain|csv)|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel))$/;
 
 export function CreateProjectForm() {
   const router = useRouter();
@@ -121,8 +68,9 @@ export function CreateProjectForm() {
   const [attachments, setAttachments] = useState<DraftAttachment[]>([]);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const attachmentUrlsRef = useRef(new Set<string>());
-  const selected =
-    CREATION_TYPES.find((option) => option.id === artifactType) ?? CREATION_TYPES[0]!;
+  const selected = outputCapabilityById(
+    artifactType === "analyze-document" ? "document" : artifactType,
+  );
 
   useEffect(() => {
     const saved = window.sessionStorage.getItem("wakil:new-project-draft");
@@ -182,7 +130,7 @@ export function CreateProjectForm() {
       if (previewUrl) attachmentUrlsRef.current.add(previewUrl);
       accepted.push({
         file,
-        id: crypto.randomUUID(),
+        id: newIdempotencyKey(),
         mediaType: file.type,
         name: file.name,
         previewUrl,
@@ -286,8 +234,12 @@ export function CreateProjectForm() {
       <RequestComposer
         attachmentAccept={selected.accept}
         attachments={attachments}
-        label="اوصف فكرتك"
-        placeholder={selected.placeholder}
+        label={arMessages.home.composerLabel}
+        placeholder={
+          artifactType === "analyze-document"
+            ? "أرفق PDF أو Word أو Excel أو PowerPoint، ثم اكتب ما الذي تريد تحليله…"
+            : selected.placeholder
+        }
         value={request}
         onValueChange={(value) => {
           setRequest(value);

@@ -23,6 +23,9 @@ export async function GET(
     return NextResponse.json({ error: "النتيجة غير موجودة." }, { status: 404 });
   }
 
-  const signedUrl = await getArtifactStore().signDownload(artifact.downloadObjectKey, 60);
+  const signedUrl = await getArtifactStore().signDownload(artifact.downloadObjectKey, 60, {
+    fileName: artifact.fileName,
+    mediaType: artifact.downloadMediaType,
+  });
   return NextResponse.redirect(signedUrl, 307);
 }

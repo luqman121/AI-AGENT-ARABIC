@@ -8,6 +8,8 @@ export type ArtifactTypeOption = {
   icon: LucideIcon;
   /** Not yet a real generated format — shown for parity, not selectable. */
   disabled?: boolean;
+  /** Truthful reason announced in the native tooltip for unavailable formats. */
+  disabledReason?: string | undefined;
 };
 
 export type ArtifactTypeScrollerProps = {
@@ -15,6 +17,7 @@ export type ArtifactTypeScrollerProps = {
   selectedId: string;
   onSelect: (id: string) => void;
   className?: string;
+  layout?: "grid" | "scroll";
 };
 
 /**
@@ -24,6 +27,7 @@ export type ArtifactTypeScrollerProps = {
  */
 export function ArtifactTypeScroller({
   className,
+  layout = "scroll",
   onSelect,
   options,
   selectedId,
@@ -33,7 +37,9 @@ export function ArtifactTypeScroller({
       role="tablist"
       aria-label="نوع الإنتاج"
       className={cn(
-        "-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        layout === "grid"
+          ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
+          : "-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >
@@ -47,13 +53,18 @@ export function ArtifactTypeScroller({
             role="tab"
             aria-selected={active}
             aria-disabled={option.disabled ? true : undefined}
-            title={option.disabled ? `${option.label} — قريبًا` : option.label}
+            title={
+              option.disabled
+                ? `${option.label} — ${option.disabledReason ?? "غير متاح حاليًا"}`
+                : option.label
+            }
             onClick={() => {
               if (!option.disabled) onSelect(option.id);
             }}
             className={cn(
-              "wk-focus-ring inline-flex h-11 shrink-0 cursor-pointer touch-manipulation items-center",
+              "wk-focus-ring inline-flex h-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center",
               "gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors duration-150",
+              layout === "grid" && "w-full",
               option.disabled
                 ? "cursor-not-allowed border-line bg-transparent text-fg-3 opacity-60"
                 : active

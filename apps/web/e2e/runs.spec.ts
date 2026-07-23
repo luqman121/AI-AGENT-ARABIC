@@ -72,15 +72,16 @@ function runPanel(page: Page) {
 }
 
 /**
- * The flow is fully automatic: planning runs, then the build auto-starts. The
- * e2e harness configures no Daytona sandbox, so the build stops at the
- * sandbox-configuration step. Reaching that message confirms planning
- * succeeded (the build requires a persisted plan) without a real sandbox.
- * Production, with a configured sandbox, continues on to a downloadable
- * artifact — covered by the seeded-artifact preview test below.
+ * Planning starts after creation, but execution remains gated until the user
+ * reviews the persisted plan and explicitly starts the website build. The e2e
+ * harness configures no Daytona sandbox, so the approved build stops at the
+ * sandbox-configuration step.
  */
-async function expectPlanThenBuildBlocked(page: Page): Promise<void> {
+async function approvePlanThenExpectBuildBlocked(page: Page): Promise<void> {
   const panel = runPanel(page);
+  const approveButton = panel.getByRole("button", { name: "ابدأ إنشاء الموقع" });
+  await expect(approveButton).toBeVisible({ timeout: 30_000 });
+  await approveButton.click();
   await expect(
     panel.getByText("تعذّر التحقق من الموقع في بيئة التنفيذ المعزولة.", { exact: false }),
   ).toBeVisible({ timeout: 30_000 });
@@ -207,13 +208,13 @@ async function holdWorkerAtValidation(): Promise<() => Promise<void>> {
   };
 }
 
-test("auto-runs planning then continues into the build", async ({ page }) => {
+test("runs planning then waits for explicit approval before the build", async ({ page }) => {
   const consoleWatcher = watchConsole(page);
   await createProject(page);
 
   const panel = runPanel(page);
   await expect(panel.getByText("الوكيل يعمل الآن")).toBeVisible({ timeout: 15_000 });
-  await expectPlanThenBuildBlocked(page);
+  await approvePlanThenExpectBuildBlocked(page);
   await assertMobileQuality(page);
   consoleWatcher.assertClean();
 });
@@ -221,7 +222,7 @@ test("auto-runs planning then continues into the build", async ({ page }) => {
 test("private artifact preview and download @visual", async ({ page }, testInfo: TestInfo) => {
   const consoleWatcher = watchConsole(page);
   await createProject(page);
-  await expectPlanThenBuildBlocked(page);
+  await approvePlanThenExpectBuildBlocked(page);
   const projectId = page.url().match(/projects\/([0-9a-f-]{36})/)?.[1];
   if (!projectId) throw new Error("Project ID missing from URL");
   await seedPrivateArtifact(projectId);
@@ -229,6 +230,12 @@ test("private artifact preview and download @visual", async ({ page }, testInfo:
   await page.goto(`/projects/${projectId}/preview`);
   await expect(page.getByText("اجتازت النتيجة التحقق المعزول.", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: "تنزيل ملف ZIP" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "تحديث المعاينة" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "نسخ رابط المعاينة الخاص" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ملء الشاشة" })).toBeVisible();
+  await page.getByRole("button", { name: "هاتف" }).click();
+  await expect(page).toHaveURL(/viewport=mobile/);
+  await expect(page.locator("div.w-\\[390px\\]")).toBeVisible();
   await expect(page.locator("iframe")).toHaveAttribute("sandbox", "allow-scripts");
   await expect(
     page.locator("iframe").contentFrame().getByRole("heading", { name: "مقهى مسقط" }),
@@ -262,9 +269,9 @@ test("queued, running, and build-blocked run states @visual", async ({
     await releaseValidationLock();
   }
 
-  // The plan completes and the build auto-starts; without a sandbox it stops
-  // at the sandbox-configuration step (see expectPlanThenBuildBlocked).
-  await expectPlanThenBuildBlocked(page);
+  // The plan completes and waits for approval; after the explicit click the
+  // build stops at the sandbox-configuration step in this harness.
+  await approvePlanThenExpectBuildBlocked(page);
   await captureState(page, testInfo, "run-build-blocked");
   consoleWatcher.assertClean();
 });
