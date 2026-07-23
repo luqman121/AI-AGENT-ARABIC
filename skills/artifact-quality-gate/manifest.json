@@ -1,0 +1,17 @@
+{
+  "id": "artifact-quality-gate",
+  "name": "Artifact Quality Gate",
+  "version": "1.0.0",
+  "description": "Type-specific completion gate; no fake links, structured pass/fail.",
+  "category": "quality",
+  "trustLevel": "internal",
+  "triggers": ["validate", "quality", "تحقق", "جودة", "اكتمال"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": [],
+  "optionalTools": [],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 90,
+  "checksum": "90bf07d5eaf652b22a597f08ba397b3ee8a67581f8f5470031342df6bd9856e4"
+}

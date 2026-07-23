@@ -1,0 +1,17 @@
+{
+  "id": "spreadsheet-studio",
+  "name": "Spreadsheet Studio",
+  "version": "1.0.0",
+  "description": "XLSX workbooks with formulas, dashboards, and workbook validation.",
+  "category": "spreadsheet",
+  "trustLevel": "internal",
+  "triggers": ["excel", "spreadsheet", "xlsx", "sheet", "budget", "جدول", "اكسل", "ميزانية"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": ["workbook-writer"],
+  "optionalTools": ["chart-render"],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 100,
+  "checksum": "51ab2e2c7885947647ab2824dc11fad3b0494bc69c97a960b6e9e5292a3aa7b2"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "design-critic",
+  "name": "Design Critic",
+  "version": "1.0.0",
+  "description": "Machine-readable design review; blocks generic or broken output.",
+  "category": "quality",
+  "trustLevel": "internal",
+  "triggers": ["critique", "review", "نقد", "مراجعة", "جودة التصميم"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": [],
+  "optionalTools": ["browser-render", "screenshot"],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 85,
+  "checksum": "89d41db0f1270f317f986c77c31df5ad9cff68cdcf4807b29f61d7f89e0ecf3e"
+}

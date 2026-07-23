@@ -1,0 +1,17 @@
+{
+  "id": "pdf-studio",
+  "name": "PDF Studio",
+  "version": "1.0.0",
+  "description": "Professional Arabic-capable PDF creation and manipulation with page QA.",
+  "category": "pdf",
+  "trustLevel": "internal",
+  "triggers": ["pdf", "report", "بي دي اف", "تقرير", "ملف pdf"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": ["pdf-writer"],
+  "optionalTools": ["pdf-render", "html-to-pdf"],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 100,
+  "checksum": "071bac6023ad9603db7ff6dfa9551d6fe9464535d1fa9f8ea693e1292bd347f0"
+}

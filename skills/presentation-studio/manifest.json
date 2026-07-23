@@ -1,0 +1,26 @@
+{
+  "id": "presentation-studio",
+  "name": "Presentation Studio",
+  "version": "1.0.0",
+  "description": "16:9 Arabic RTL decks: one message per slide, intentional composition.",
+  "category": "presentation",
+  "trustLevel": "internal",
+  "triggers": [
+    "powerpoint",
+    "pptx",
+    "presentation",
+    "deck",
+    "slides",
+    "عرض تقديمي",
+    "شرائح",
+    "بوربوينت"
+  ],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": ["pptx-writer"],
+  "optionalTools": ["slide-render"],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 100,
+  "checksum": "f1a0f44c5a9c293885efb692ef725b91a9850edded6ee7993a956d6ea2fe42a4"
+}

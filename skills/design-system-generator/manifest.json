@@ -1,0 +1,17 @@
+{
+  "id": "design-system-generator",
+  "name": "Design System Generator",
+  "version": "1.0.0",
+  "description": "Defines and persists a mini design system before pages are written.",
+  "category": "design",
+  "trustLevel": "internal",
+  "triggers": ["design system", "tokens", "theme", "نظام تصميم", "هوية", "ألوان"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": [],
+  "optionalTools": [],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 70,
+  "checksum": "44928fbcde02954250e3d8172be6468442d93a28a313e7eb75dfc6ae0a5d4a01"
+}

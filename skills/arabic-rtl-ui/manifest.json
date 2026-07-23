@@ -1,0 +1,17 @@
+{
+  "id": "arabic-rtl-ui",
+  "name": "Arabic RTL UI",
+  "version": "1.0.0",
+  "description": "Structural RTL, logical properties, Arabic typography and locale formatting.",
+  "category": "design",
+  "trustLevel": "internal",
+  "triggers": ["arabic", "rtl", "عربي", "عربية", "اتجاه", "خليجي", "عماني"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": [],
+  "optionalTools": [],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 95,
+  "checksum": "5894822554328c98aeb3408323fdf84bd4ef037169961ba7e08def8730c770dd"
+}

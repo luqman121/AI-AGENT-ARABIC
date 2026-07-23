@@ -1,0 +1,17 @@
+{
+  "id": "premium-depth-shadow",
+  "name": "Premium Depth & Shadow",
+  "version": "1.0.0",
+  "description": "Controlled elevation system; shadows communicate depth, not decoration.",
+  "category": "design",
+  "trustLevel": "internal",
+  "triggers": ["shadow", "elevation", "depth", "ظل", "عمق", "ارتفاع"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": [],
+  "optionalTools": [],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 60,
+  "checksum": "c1618ca5d19e073fab50573c08e8269332c01ee698b5c06db2c39c58fa9b27c1"
+}

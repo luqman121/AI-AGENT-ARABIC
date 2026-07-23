@@ -1,0 +1,27 @@
+{
+  "id": "document-reader",
+  "name": "Document Reader",
+  "version": "1.0.0",
+  "description": "Native-first extraction from PDF/DOCX/PPTX/XLSX with evidence references.",
+  "category": "reading",
+  "trustLevel": "internal",
+  "triggers": [
+    "read",
+    "analyze",
+    "summarize",
+    "extract",
+    "اقرأ",
+    "حلّل",
+    "لخّص",
+    "استخرج",
+    "تحليل"
+  ],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": ["document-extract"],
+  "optionalTools": ["ocr"],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 100,
+  "checksum": "84b9dc0765e1d2d7f7486a889146b28abef3b3138477f09f1e2349be1fd87ed8"
+}

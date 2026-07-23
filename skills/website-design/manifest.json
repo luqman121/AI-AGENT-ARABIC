@@ -1,0 +1,30 @@
+{
+  "id": "website-design",
+  "name": "Website Design",
+  "version": "1.0.0",
+  "description": "Product-specific website structure, hierarchy, and mini design system.",
+  "category": "website",
+  "trustLevel": "internal",
+  "triggers": [
+    "website",
+    "site",
+    "landing",
+    "page",
+    "web app",
+    "dashboard",
+    "موقع",
+    "صفحة",
+    "هبوط",
+    "تطبيق",
+    "لوحة",
+    "واجهة"
+  ],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": [],
+  "optionalTools": ["browser-render", "screenshot"],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 100,
+  "checksum": "3f9fef9389865b88276f6213fa60813e817a944ca3fffc32b1e51067b7c73975"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "website-quality-gate",
+  "name": "Website Quality Gate",
+  "version": "1.0.0",
+  "description": "Blocks completion until RTL, states, a11y, console, and build pass.",
+  "category": "quality",
+  "trustLevel": "internal",
+  "triggers": ["quality gate", "validate site", "بوابة جودة", "تحقق الموقع"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": [],
+  "optionalTools": ["browser-render", "axe"],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 80,
+  "checksum": "643ab7741abab1014e37a69c55531bb9a3952acf04f84be066ff807cc17a24be"
+}

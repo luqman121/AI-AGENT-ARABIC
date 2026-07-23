@@ -1,0 +1,113 @@
+{
+  "generatedFrom": "packages/skills/src/runtime/registry.ts",
+  "skills": [
+    {
+      "id": "website-design",
+      "version": "1.0.0",
+      "category": "website",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "3f9fef9389865b88276f6213fa60813e817a944ca3fffc32b1e51067b7c73975"
+    },
+    {
+      "id": "arabic-rtl-ui",
+      "version": "1.0.0",
+      "category": "design",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "5894822554328c98aeb3408323fdf84bd4ef037169961ba7e08def8730c770dd"
+    },
+    {
+      "id": "design-system-generator",
+      "version": "1.0.0",
+      "category": "design",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "44928fbcde02954250e3d8172be6468442d93a28a313e7eb75dfc6ae0a5d4a01"
+    },
+    {
+      "id": "premium-depth-shadow",
+      "version": "1.0.0",
+      "category": "design",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "c1618ca5d19e073fab50573c08e8269332c01ee698b5c06db2c39c58fa9b27c1"
+    },
+    {
+      "id": "design-critic",
+      "version": "1.0.0",
+      "category": "quality",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "89d41db0f1270f317f986c77c31df5ad9cff68cdcf4807b29f61d7f89e0ecf3e"
+    },
+    {
+      "id": "website-quality-gate",
+      "version": "1.0.0",
+      "category": "quality",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "643ab7741abab1014e37a69c55531bb9a3952acf04f84be066ff807cc17a24be"
+    },
+    {
+      "id": "document-reader",
+      "version": "1.0.0",
+      "category": "reading",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "84b9dc0765e1d2d7f7486a889146b28abef3b3138477f09f1e2349be1fd87ed8"
+    },
+    {
+      "id": "pdf-studio",
+      "version": "1.0.0",
+      "category": "pdf",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "071bac6023ad9603db7ff6dfa9551d6fe9464535d1fa9f8ea693e1292bd347f0"
+    },
+    {
+      "id": "spreadsheet-studio",
+      "version": "1.0.0",
+      "category": "spreadsheet",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "51ab2e2c7885947647ab2824dc11fad3b0494bc69c97a960b6e9e5292a3aa7b2"
+    },
+    {
+      "id": "document-studio",
+      "version": "1.0.0",
+      "category": "document",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "27534c611c710bf9813e8252323e7ad877bc9869998c73db73154c37bdc9e00e"
+    },
+    {
+      "id": "presentation-studio",
+      "version": "1.0.0",
+      "category": "presentation",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "f1a0f44c5a9c293885efb692ef725b91a9850edded6ee7993a956d6ea2fe42a4"
+    },
+    {
+      "id": "artifact-quality-gate",
+      "version": "1.0.0",
+      "category": "quality",
+      "trustLevel": "internal",
+      "license": "proprietary",
+      "source": "internal:wakil",
+      "checksum": "90bf07d5eaf652b22a597f08ba397b3ee8a67581f8f5470031342df6bd9856e4"
+    }
+  ]
+}

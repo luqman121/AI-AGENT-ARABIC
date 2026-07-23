@@ -1,0 +1,17 @@
+{
+  "id": "document-studio",
+  "name": "Document Studio",
+  "version": "1.0.0",
+  "description": "Professional Arabic RTL DOCX reports, letters, and proposals.",
+  "category": "document",
+  "trustLevel": "internal",
+  "triggers": ["word", "docx", "document", "letter", "proposal", "مستند", "خطاب", "عرض", "وثيقة"],
+  "supportedLanguages": ["ar", "en"],
+  "requiredTools": ["docx-writer"],
+  "optionalTools": ["docx-render"],
+  "source": "internal:wakil",
+  "license": "proprietary",
+  "enabled": true,
+  "priority": 100,
+  "checksum": "27534c611c710bf9813e8252323e7ad877bc9869998c73db73154c37bdc9e00e"
+}
