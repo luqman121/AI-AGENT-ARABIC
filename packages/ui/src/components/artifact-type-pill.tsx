@@ -8,6 +8,8 @@ export type ArtifactTypeOption = {
   icon: LucideIcon;
   /** Not yet a real generated format — shown for parity, not selectable. */
   disabled?: boolean;
+  /** Truthful reason announced in the native tooltip for unavailable formats. */
+  disabledReason?: string | undefined;
 };
 
 export type ArtifactTypeScrollerProps = {
@@ -47,7 +49,11 @@ export function ArtifactTypeScroller({
             role="tab"
             aria-selected={active}
             aria-disabled={option.disabled ? true : undefined}
-            title={option.disabled ? `${option.label} — قريبًا` : option.label}
+            title={
+              option.disabled
+                ? `${option.label} — ${option.disabledReason ?? "غير متاح حاليًا"}`
+                : option.label
+            }
             onClick={() => {
               if (!option.disabled) onSelect(option.id);
             }}
