@@ -39,7 +39,10 @@ describe("compileRuntimePrompt", () => {
     expect(compiled.metadata.mode).toBe("read");
     expect(compiled.metadata.validationProfile).toBe("reading");
     expect(compiled.prompt.developer).not.toContain("متطلبات التحقق");
-    expect(compiled.metadata.skillIds).toEqual(["document-reader"]);
+    expect(compiled.metadata.skillIds).toContain("document-reader");
+    expect(compiled.metadata.skillIds).toContain("pdf-studio");
+    expect(compiled.metadata.skillIds).toContain("artifact-quality-gate");
+    expect(compiled.metadata.skillIds).toContain("arabic-rtl-ui");
     // Uploaded content is fenced into the user message.
     expect(compiled.prompt.user).toContain("محتوى المستند المرفوع");
     expect(compiled.prompt.user).toContain("غير موثوق");

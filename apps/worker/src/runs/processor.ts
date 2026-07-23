@@ -1,5 +1,5 @@
 import {
-  generateFileArtifact,
+  generateFileArtifactWithReview,
   generatePlanningTurn,
   generateStaticSiteWithReview,
   type PlanningLimits,
@@ -120,7 +120,7 @@ function logSkillsRuntime(
       used: info.used,
       validationProfile: info.validationProfile,
     },
-    "skills_runtime.website",
+    "skills_runtime.artifact",
   );
 }
 
@@ -469,6 +469,7 @@ async function processExecutionRun(
     ...(runtimeFlag?.enabled
       ? {
           designReview: {
+            alwaysPolish: true,
             enabled: true,
             ...(runtimeFlag.maxRepairAttempts !== undefined
               ? { maxRepairAttempts: runtimeFlag.maxRepairAttempts }
@@ -696,16 +697,45 @@ async function processFileExecutionRun(
     workspaceId: job.workspaceId,
     type: "artifact.generating",
   });
-  const generated = await generateFileArtifact({
+  const runtimeFlag = deps.skillsRuntime;
+  const generated = await generateFileArtifactWithReview({
     adapter: deps.adapter,
     isCancelled: () => isCancelRequested(deps, job.runId),
     kind,
     limits: execution.generationLimits,
     model: deps.model,
+    qualityReview: {
+      enabled: runtimeFlag?.enabled ?? false,
+      ...(runtimeFlag?.maxRepairAttempts !== undefined
+        ? { maxRepairAttempts: runtimeFlag.maxRepairAttempts }
+        : {}),
+    },
     reviewedPlan,
     ...(sourceContext ? { sourceContext } : {}),
+    ...(runtimeFlag?.enabled
+      ? {
+          skillsRuntime: {
+            enabled: true,
+            ...(runtimeFlag.maxPromptTokens !== undefined
+              ? { maxPromptTokens: runtimeFlag.maxPromptTokens }
+              : {}),
+          },
+        }
+      : {}),
     userRequest,
   });
+  logSkillsRuntime(
+    deps,
+    job.runId,
+    generated.skillsRuntime,
+    generated.review
+      ? {
+          passed: generated.review.valid,
+          repairAttempts: generated.repairAttempts,
+          score: generated.review.score,
+        }
+      : undefined,
+  );
   if (!generated.ok) {
     if (generated.code === "cancelled") {
       return finalizeFailure(
@@ -722,6 +752,16 @@ async function processFileExecutionRun(
       job,
       generated.attempts,
       failureErrorCode(generated.code),
+      "failed",
+      FILE_ARTIFACT_PROMPT_VERSION,
+    );
+  }
+  if (generated.review && !generated.review.valid) {
+    return finalizeFailure(
+      deps,
+      job,
+      generated.attempts,
+      "ARTIFACT_VALIDATION_FAILED",
       "failed",
       FILE_ARTIFACT_PROMPT_VERSION,
     );

@@ -16,7 +16,7 @@ const limits: StaticSiteGenerationLimits = {
 };
 
 const GOOD_HTML =
-  '<!doctype html><html lang="ar" dir="rtl"><head><meta name="viewport" content="width=device-width"><title>مقهى</title></head><body><h1>مقهى الديوانية</h1><a href="#menu">اطلب الآن</a></body></html>';
+  '<!doctype html><html lang="ar" dir="rtl"><head><meta name="viewport" content="width=device-width"><title>مقهى</title></head><body><h1>مقهى الديوانية</h1><section><h2>قهوة تحضّر بعناية</h2><p>نقدّم تجربة هادئة تجمع بين جودة البن وحسن الضيافة، مع قائمة واضحة وخيارات تناسب الصباح ولقاءات المساء.</p></section><section id="menu"><h2>القائمة</h2><p>اختر مشروبك المفضل واستمتع بنكهات متوازنة، وتحضير دقيق، وخدمة مباشرة تساعدك على الطلب بسهولة من الهاتف.</p></section><a href="#menu">اطلب الآن</a></body></html>';
 
 // No primary-action element and no viewport meta — the critic will block this.
 const BAD_HTML =

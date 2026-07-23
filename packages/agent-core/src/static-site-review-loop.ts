@@ -10,6 +10,8 @@ import { reviewStaticSiteHtml } from "./website-review.js";
 export type DesignReviewOption = {
   /** Off by default; when false, behaves exactly like `generateStaticSite`. */
   enabled: boolean;
+  /** Require one editorial/design polish generation even when static checks pass. */
+  alwaysPolish?: boolean;
   /** Clamped to [0, 2] — never an unlimited correction loop. Defaults to 1. */
   maxRepairAttempts?: number;
 };
@@ -57,22 +59,52 @@ export async function generateStaticSiteWithReview(
 
   let review = reviewStaticSiteHtml(current.html);
   let attempts = 0;
+  let polishPending = input.designReview?.alwaysPolish ?? false;
+  let totalAttempts = current.attempts;
+  let totalUsage = { ...current.usage };
 
-  while (!review.passed && attempts < maxRepairAttempts) {
+  while ((polishPending || !review.passed) && attempts < maxRepairAttempts) {
     attempts += 1;
-    const repairNotes = [...review.blockingIssues, ...review.majorIssues].map(
-      (issue) => issue.message,
-    );
-    const repaired = await generateStaticSite({ ...input, repairNotes });
+    const repairNotes = [
+      ...(polishPending
+        ? [
+            "نفّذ تمريرة تحرير نهائية للنص العربي: صياغة خليجية طبيعية، بلا ترجمة حرفية أو حشو أو نصوص مؤقتة، مع الحفاظ على الحقائق وعدم اختلاق ادعاءات.",
+            "حسّن التسلسل البصري والمسافات ووضوح الإجراء الرئيسي وتجربة الهاتف قبل التسليم.",
+          ]
+        : []),
+      ...[...review.blockingIssues, ...review.majorIssues].map((issue) => issue.message),
+    ];
+    polishPending = false;
+    const remainingCost = input.limits.maxCostMicros - totalUsage.costMicros;
+    if (remainingCost <= 0)
+      return { ...current, attempts: totalAttempts, repairAttempts: attempts, review };
+    const repaired = await generateStaticSite({
+      ...input,
+      limits: { ...input.limits, maxCostMicros: remainingCost },
+      repairNotes,
+    });
+    totalAttempts += repaired.attempts;
     if (!repaired.ok) {
       // The repair attempt itself failed to produce output. Stop repairing
       // and report the last known-good generation with its (failing) review
       // rather than losing it or fabricating success.
-      return { ...current, repairAttempts: attempts, review };
+      return { ...current, attempts: totalAttempts, repairAttempts: attempts, review };
     }
+    totalUsage = {
+      ...repaired.usage,
+      costMicros: totalUsage.costMicros + repaired.usage.costMicros,
+      inputTokens: totalUsage.inputTokens + repaired.usage.inputTokens,
+      outputTokens: totalUsage.outputTokens + repaired.usage.outputTokens,
+    };
     current = repaired;
     review = reviewStaticSiteHtml(current.html);
   }
 
-  return { ...current, repairAttempts: attempts, review };
+  return {
+    ...current,
+    attempts: totalAttempts,
+    repairAttempts: attempts,
+    review,
+    usage: totalUsage,
+  };
 }

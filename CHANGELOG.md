@@ -4,6 +4,24 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Skills runtime enabled across all artifact engines with Arabic editorial review
+
+- Connected the runtime router/compiler to PDF, DOCX, XLSX, PPTX, and uploaded-document analysis
+  generation, in addition to websites. Analysis combines `document-reader` with the destination
+  studio, Arabic RTL, and artifact quality skills instead of dropping output-quality guidance.
+- Added a bounded two-stage native-file pipeline: the first structured draft is sent through an
+  independent final editorial call that proofreads natural Arabic, removes placeholders/repetition,
+  preserves facts and numbers, and returns the same strict JSON schema. A deterministic final gate
+  blocks placeholder copy, insufficient Arabic, empty presentation content, and other structural
+  defects before any file is rendered or uploaded.
+- Website generation now performs one required polish pass while the runtime is enabled, even when
+  the first static audit is clean. The audit also blocks placeholder/thin/non-Arabic visible copy.
+- Upgraded Arabic PDF rendering with a designed cover, consistent page chrome, numbered sections,
+  improved spacing, and real page-number footers; native signature/parse validation remains
+  required.
+- Added the runtime variables to the production Compose contract. The source default remains off;
+  operators must explicitly enable it after live verification.
+
 ### Skills runtime: live-verification runbook (merged with verification outstanding)
 
 - Added `scripts/verify-skills-runtime-live.ts`: a standalone script that calls the real

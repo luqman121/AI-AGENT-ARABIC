@@ -254,8 +254,9 @@ async function buildPdf(draft: unknown): Promise<Uint8Array> {
   const data = documentDraftSchema.parse(draft);
   return new Promise<Uint8Array>((resolve, reject) => {
     const doc = new PDFDocument({
+      bufferPages: true,
       size: "A4",
-      margin: 48,
+      margin: 52,
       info: { Author: "وكيل", Title: data.title },
     });
     const chunks: Buffer[] = [];
@@ -263,35 +264,105 @@ async function buildPdf(draft: unknown): Promise<Uint8Array> {
     doc.on("error", reject);
     doc.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
     doc.font(ARABIC_FONT_PATH);
-    doc
-      .fontSize(24)
-      .fillColor("#241c3e")
-      .text(pdfRtlText(data.title), { align: "right", features: ["rtla"] });
-    doc.moveDown(0.5);
+
+    const pageWidth = doc.page.width;
+    const contentWidth = pageWidth - 104;
+    const addPageChrome = () => {
+      doc.save().rect(0, 0, pageWidth, 10).fill("#5036a8").restore();
+      doc
+        .fontSize(9)
+        .fillColor("#6f6780")
+        .text(pdfRtlText("وكيل"), 52, 25, {
+          align: "right",
+          features: ["rtla"],
+          width: contentWidth,
+        });
+      doc.y = 58;
+    };
+    const ensureSpace = (needed = 90) => {
+      if (doc.y + needed <= doc.page.height - 64) return;
+      doc.addPage();
+      addPageChrome();
+    };
+
+    doc.save().rect(0, 0, pageWidth, 16).fill("#5036a8").restore();
     doc
       .fontSize(11)
+      .fillColor("#6f6780")
+      .text(pdfRtlText("تقرير احترافي من وكيل"), 52, 70, {
+        align: "right",
+        features: ["rtla"],
+        width: contentWidth,
+      });
+    doc
+      .fontSize(28)
+      .fillColor("#241c3e")
+      .text(pdfRtlText(data.title), 52, 150, {
+        align: "right",
+        features: ["rtla"],
+        lineGap: 8,
+        width: contentWidth,
+      });
+    doc.moveDown(0.8);
+    doc
+      .save()
+      .rect(pageWidth - 190, doc.y, 138, 4)
+      .fill("#8d6cff")
+      .restore();
+    doc.moveDown(1.1);
+    doc
+      .fontSize(12)
       .fillColor("#5e5870")
-      .text(pdfRtlText(data.summary), { align: "right", features: ["rtla"] });
-    for (const section of data.sections) {
-      doc.moveDown(1);
+      .text(pdfRtlText(data.summary), { align: "right", features: ["rtla"], lineGap: 6 });
+
+    if (data.sections.length > 0) {
+      doc.addPage();
+      addPageChrome();
+    }
+    for (const [sectionIndex, section] of data.sections.entries()) {
+      ensureSpace(100);
       doc
-        .fontSize(16)
+        .fontSize(9)
+        .fillColor("#8d6cff")
+        .text(`${sectionIndex + 1}`.padStart(2, "0"), { align: "right" });
+      doc
+        .fontSize(17)
         .fillColor("#5036a8")
-        .text(pdfRtlText(section.heading), { align: "right", features: ["rtla"] });
+        .text(pdfRtlText(section.heading), { align: "right", features: ["rtla"], lineGap: 4 });
+      doc.moveDown(0.35);
       for (const paragraph of section.paragraphs) {
-        doc.moveDown(0.35);
+        ensureSpace(75);
         doc
           .fontSize(11)
-          .fillColor("#222222")
-          .text(pdfRtlText(paragraph), { align: "right", features: ["rtla"] });
+          .fillColor("#25212e")
+          .text(pdfRtlText(paragraph), { align: "right", features: ["rtla"], lineGap: 5 });
+        doc.moveDown(0.45);
       }
       for (const bullet of section.bullets) {
-        doc.moveDown(0.2);
+        ensureSpace(45);
         doc
           .fontSize(11)
-          .fillColor("#222222")
-          .text(`• ${pdfRtlText(bullet)}`, { align: "right", features: ["rtla"] });
+          .fillColor("#25212e")
+          .text(`• ${pdfRtlText(bullet)}`, { align: "right", features: ["rtla"], lineGap: 4 });
+        doc.moveDown(0.25);
       }
+      doc.moveDown(0.8);
+    }
+
+    const range = doc.bufferedPageRange();
+    for (let pageIndex = range.start; pageIndex < range.start + range.count; pageIndex += 1) {
+      doc.switchToPage(pageIndex);
+      const bottomMargin = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
+      doc
+        .fontSize(9)
+        .fillColor("#81798d")
+        .text(`${pageIndex + 1} / ${range.count}`, 52, doc.page.height - 36, {
+          align: "center",
+          lineBreak: false,
+          width: contentWidth,
+        });
+      doc.page.margins.bottom = bottomMargin;
     }
     doc.end();
   });

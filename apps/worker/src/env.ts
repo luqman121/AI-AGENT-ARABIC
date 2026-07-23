@@ -92,9 +92,9 @@ const workerEnvSchema = z
     REDIS_URL: redisUrl,
     WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
     WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
-    // Feature flag: routes website generation through the Skills Runtime
-    // (skill selection + Design Critic repair loop) instead of the legacy
-    // static-site prompt path. Off by default; a runtime compilation
+    // Feature flag: routes websites and native file artifacts through the
+    // Skills Runtime, including one bounded editorial/quality pass. Off by
+    // default; a runtime compilation
     // failure always falls back to the legacy path rather than failing the
     // run. See docs/agent-skills-sources.md and CHANGELOG.md.
     AGENT_SKILLS_RUNTIME_ENABLED: booleanFlag(false),

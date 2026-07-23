@@ -121,10 +121,10 @@ function selectSkillIds(params: {
   const { artifactType, mode, rtl, visualDesign } = params;
   const ids = new Set<string>();
 
-  if (mode === "read" || mode === "analyze") {
-    ids.add("document-reader");
-    return [...ids];
-  }
+  // Reading/analyzing an uploaded source is often followed by creation of a
+  // polished output artifact. Keep the reader skill and continue selecting
+  // the destination-kind studio + quality gate instead of dropping them.
+  if (mode === "read" || mode === "analyze") ids.add("document-reader");
 
   switch (artifactType) {
     case "static_site":

@@ -19,6 +19,7 @@ import type { DesignReview, ReviewFix, ReviewIssue } from "@wakil/skills";
 const GRADIENT_PATTERN = /linear-gradient\([^)]*\)/gi;
 const PURPLE_TOKENS = /purple|violet|indigo|#7c3aed|#8b5cf6|#a855f7|#6d28d9|#4c1d95/i;
 const BLUE_TOKENS = /\bblue\b|#3b82f6|#2563eb|#1d4ed8|#06b6d4|#0ea5e9/i;
+const PLACEHOLDER_COPY = /lorem ipsum|اكتب هنا|نص تجريبي|عنوان رئيسي|وصف الخدمة|اسم الشركة/iu;
 
 // Note: a trailing `\b` after an Arabic word never matches — Arabic letters
 // are non-word characters (\W) to JS regex, so no \w/\W transition occurs at
@@ -95,6 +96,42 @@ function checkFakeClaims(html: string, issues: ReviewIssue[]): void {
       });
       return;
     }
+  }
+}
+
+function checkArabicCopyQuality(html: string, issues: ReviewIssue[]): void {
+  const visible = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z#0-9]+;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (PLACEHOLDER_COPY.test(visible)) {
+    issues.push({
+      id: "placeholder-copy",
+      severity: "blocking",
+      message: "النص الظاهر يحتوي على عبارات مؤقتة أو نموذجية ويجب تحريره قبل التسليم.",
+      area: "content-quality",
+    });
+  }
+  const arabic = visible.match(/[\u0621-\u063A\u0641-\u064A]/gu)?.length ?? 0;
+  const latin = visible.match(/[A-Za-z]/g)?.length ?? 0;
+  if (visible.length < 250) {
+    issues.push({
+      id: "thin-visible-copy",
+      severity: "major",
+      message: "المحتوى الظاهر قصير جداً ولا يكفي لصفحة مكتملة ومقنعة.",
+      area: "content-quality",
+    });
+  }
+  if (arabic < 80 || arabic / Math.max(1, arabic + latin) < 0.3) {
+    issues.push({
+      id: "insufficient-arabic-copy",
+      severity: "blocking",
+      message: "النص العربي غير كافٍ أو تغلب عليه صياغة غير عربية؛ يلزم تحرير عربي طبيعي.",
+      area: "content-quality",
+    });
   }
 }
 
@@ -246,6 +283,7 @@ export function reviewStaticSiteHtml(html: string): DesignReview {
   checkHeadingHierarchy(html, issues);
   checkPrimaryAction(html, issues);
   checkFakeClaims(html, issues);
+  checkArabicCopyQuality(html, issues);
   checkGradients(html, issues);
   checkShadowUsage(html, issues);
   checkRepetitiveCards(html, issues);

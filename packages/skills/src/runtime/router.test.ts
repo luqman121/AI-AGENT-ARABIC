@@ -34,14 +34,17 @@ describe("routeSkills — artifact + mode inference", () => {
     expect(routed.skillIds).not.toContain("website-design");
   });
 
-  it("routes PDF reading to the document reader only", () => {
+  it("routes PDF reading through the reader, PDF studio, quality gate, and Arabic RTL", () => {
     const routed = routeSkills({
       requestText: "لخّص لي هذا الملف واستخرج الجداول",
       uploadedMimeTypes: ["application/pdf"],
     });
     expect(routed.mode).toBe("read");
     expect(routed.artifactType).toBe("pdf");
-    expect(routed.skillIds).toEqual(["document-reader"]);
+    expect(routed.skillIds).toContain("document-reader");
+    expect(routed.skillIds).toContain("pdf-studio");
+    expect(routed.skillIds).toContain("artifact-quality-gate");
+    expect(routed.skillIds).toContain("arabic-rtl-ui");
   });
 
   it("routes a spreadsheet request", () => {
