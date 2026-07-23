@@ -130,7 +130,7 @@ export function CreateProjectForm() {
       if (previewUrl) attachmentUrlsRef.current.add(previewUrl);
       accepted.push({
         file,
-        id: crypto.randomUUID(),
+        id: newIdempotencyKey(),
         mediaType: file.type,
         name: file.name,
         previewUrl,
