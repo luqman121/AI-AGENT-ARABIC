@@ -130,4 +130,27 @@ describe("native file artifact generation", () => {
     expect(review.valid).toBe(false);
     expect(review.blockingErrors.length).toBeGreaterThan(0);
   });
+
+  it("accepts legitimate Arabic business terms such as value and point", () => {
+    const review = reviewGeneratedFileDraft(
+      "pdf",
+      {
+        title: "تقرير قيمة المبيعات الشهرية",
+        summary:
+          "تقرير عربي منظم يراجع قيمة المبيعات والتكاليف، ويحدد نقطة التحسين التالية بخطوات عملية واضحة.",
+        sections: [
+          {
+            heading: "النتائج والتوصيات",
+            paragraphs: [
+              "توضح البيانات اتجاه الأداء خلال الفترة، مع التركيز على جودة الإنفاق وتحسين تجربة صفحة الهبوط دون إضافة أرقام غير متاحة.",
+            ],
+            bullets: ["مراجعة قيمة الطلب", "تحديد نقطة القياس الأسبوعية"],
+          },
+        ],
+      },
+      true,
+    );
+    expect(review.valid).toBe(true);
+    expect(review.blockingErrors).toEqual([]);
+  });
 });
