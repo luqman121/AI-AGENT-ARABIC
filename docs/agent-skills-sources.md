@@ -12,6 +12,13 @@ This platform separates two skill layers:
 All Layer B skills are **original content authored for Wakil** (trust level `internal`, license
 `proprietary`). No third-party skill text is vendored into the runtime.
 
+**Live integration status:** the runtime is connected to the real customer-facing website generation
+path (`generateStaticSite` / `generateStaticSiteWithReview` in `@wakil/agent-core`, invoked by the
+worker's run processor), gated by `AGENT_SKILLS_RUNTIME_ENABLED` (default `false`). See
+`CHANGELOG.md` for the integration details and `docs/development.md` for the env vars. Document
+reading/PDF/spreadsheet/document/presentation execution engines are not yet connected to any live
+path — only the registry/router/prompt-compiler exist for those categories so far.
+
 ## Layer B — Runtime skills (this repository)
 
 | Skill                     | Category     | Trust    | License     | Status   |

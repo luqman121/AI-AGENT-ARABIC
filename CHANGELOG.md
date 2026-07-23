@@ -4,6 +4,54 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Skills runtime connected to live website generation (feature-flagged)
+
+- Wired the Skills Runtime into the real customer-facing website generation call
+  (`generateStaticSite` in `@wakil/agent-core`), gated by a new worker env flag
+  `AGENT_SKILLS_RUNTIME_ENABLED` (default `false`). Disabled behavior is byte-identical to the
+  legacy path (same system prompt, same JSON-envelope developer instructions); enabled behavior
+  appends the router-selected skill instructions to the same developer message and returns
+  admin-only `skillsRuntime` metadata (prompt version, skill ids/versions, skipped skills, token
+  estimate, locale/RTL, provider). A narrowly-scoped compilation failure (not a broad catch) falls
+  back to the legacy prompt automatically; the customer never sees the failure.
+- Added an original, deterministic, testable Design Critic (`reviewStaticSiteHtml` in
+  `@wakil/agent-core`): static-analysis checks for RTL structure, a working primary action,
+  fabricated business claims, purple-to-blue gradients, excessive shadows, repetitive card patterns,
+  image alt text, viewport meta, obvious text/background contrast collisions, and an
+  oversized-fixed-width overflow-risk proxy. Blocking issues (RTL, primary action, fake claims,
+  missing title, contrast collision) fail the review; major/minor issues lower the score without
+  blocking.
+- Added `generateStaticSiteWithReview`: generates, runs the critic, and — only when enabled —
+  performs at most 1–2 repair passes (configurable, hard-capped at 2) by re-generating with the
+  critic's findings appended as repair notes. Wired into the worker processor: when the flag is on
+  and blocking issues remain after repairs, the run is finalized as **failed**
+  (`DESIGN_VALIDATION_FAILED`) before any sandbox validation or artifact upload — never marked
+  succeeded with unresolved blocking issues. The existing customer-facing generic failure message
+  already covers unrecognized error codes, so no web app changes were needed.
+- Added a real, Chromium-based render-validation check (reusing the root-pinned `@playwright/test`,
+  no new dependency) that launches an actual browser and inspects real DOM geometry, console errors,
+  and RTL attributes at the four required viewports (390×844, 430×932, 768×1024, 1440×900), with
+  genuine screenshots. This lives in test-only files (excluded from the package build) and is
+  exercised at test time; it is **not** wired into the production worker process in this increment —
+  adding a browser dependency to the worker's runtime/Docker image is a larger infrastructure change
+  outside this scope and is called out as a limitation.
+- Added a required end-to-end acceptance scenario (the Arabic SaaS landing page prompt) exercised
+  against a scripted adapter (no live model/API key is available in this environment — disclosed,
+  not hidden): proves the real prompt difference between the legacy and runtime paths, a genuine
+  one-pass repair that only succeeds because the second scripted response actually fixes the flagged
+  purple-gradient/repetitive-card/dead-CTA issues, and a real rendered pass at all four viewports
+  with no fabricated claims.
+- Planning-turn generation was deliberately left unchanged in this increment (its prompt/response
+  contract is tightly tested and doesn't produce the artifact itself); documented as a scoping
+  decision, not an oversight.
+- Tests: unit tests for the skills-runtime prompt integration (Arabic skill selection, no unrelated
+  document skills, no leaked instruction text, narrow-fallback-on-failure, unchanged
+  `{system, developer, user}` shape, system prompt immune to injected request content), the Design
+  Critic, the bounded repair loop, the worker env flag, and Docker-gated processor integration tests
+  (written, not run — no Docker in this environment, consistent with prior sessions). Verified
+  `pnpm lint`, `pnpm typecheck`, `pnpm test` (including the real Playwright render checks),
+  `pnpm build`, and `pnpm format:check`.
+
 ### Skills runtime core (provider-neutral)
 
 - Added a provider-neutral **Skills Runtime** inside `@wakil/skills` (the layer every model adapter
