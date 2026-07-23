@@ -119,6 +119,17 @@ function checksum(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function attachmentDisposition(fileName: string): string {
+  const sanitized = fileName.replace(/["\\\r\n]/g, "_");
+  const extension = sanitized.match(/\.[a-z0-9]{1,10}$/i)?.[0]?.toLowerCase() ?? "";
+  const fallback = `wakil-output${extension}`;
+  const encoded = encodeURIComponent(sanitized).replace(
+    /[!'()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+}
+
 function isMissingObject(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const candidate = error as { $metadata?: { httpStatusCode?: number }; name?: string };
@@ -199,11 +210,7 @@ export class S3ArtifactStore {
 
   async uploadGeneratedFile(keys: ArtifactObjectKeys, bundle: GeneratedFileUpload): Promise<void> {
     await this.#put(keys.previewKey, bundle.preview, "inline");
-    await this.#put(
-      keys.zipKey,
-      bundle.download,
-      `attachment; filename="${bundle.fileName.replace(/["\\\r\n]/g, "_")}"`,
-    );
+    await this.#put(keys.zipKey, bundle.download, attachmentDisposition(bundle.fileName));
   }
 
   /** Uploads a private non-artifact input such as a user file or voice note. */
@@ -222,7 +229,7 @@ export class S3ArtifactStore {
         mediaType: input.mediaType,
         sizeBytes: input.bytes.byteLength,
       },
-      `attachment; filename="${input.fileName.replace(/["\\\r\n]/g, "_")}"`,
+      attachmentDisposition(input.fileName),
     );
   }
 
@@ -251,7 +258,7 @@ export class S3ArtifactStore {
     expiresInSeconds = 300,
   ): Promise<string> {
     return this.#signObject(key, expiresInSeconds, {
-      disposition: `attachment; filename="${response.fileName.replace(/["\\\r\n]/g, "_")}"`,
+      disposition: attachmentDisposition(response.fileName),
       mediaType: response.mediaType,
     });
   }
@@ -399,9 +406,8 @@ export class S3ArtifactStore {
       mediaType: "application/zip",
     },
   ): Promise<string> {
-    const fileName = response.fileName.replace(/["\\\r\n]/g, "_");
     return this.#signObject(key, expiresInSeconds, {
-      disposition: `attachment; filename="${fileName}"`,
+      disposition: attachmentDisposition(response.fileName),
       mediaType: response.mediaType,
     });
   }

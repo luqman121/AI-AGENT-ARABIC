@@ -107,6 +107,40 @@ describe("static site artifacts", () => {
     }
   });
 
+  it("encodes Arabic generated filenames into an ASCII-safe S3 header", async () => {
+    const send = vi.spyOn(S3Client.prototype, "send").mockResolvedValue({ $metadata: {} } as never);
+
+    try {
+      const store = new S3ArtifactStore({
+        accessKeyId: "test-access",
+        bucket: "private-bucket",
+        endpoint: "https://0123456789abcdef.r2.cloudflarestorage.com",
+        forcePathStyle: true,
+        region: "auto",
+        secretAccessKey: "test-secret",
+      });
+      const bytes = Buffer.from("file");
+      const artifact = {
+        bytes,
+        checksumSha256: "a".repeat(64),
+        mediaType: "application/pdf",
+        sizeBytes: bytes.byteLength,
+      };
+      await store.uploadGeneratedFile(
+        { previewKey: "private/preview.html", zipKey: "private/report.pdf" },
+        { download: artifact, fileName: "تقرير المبيعات.pdf", preview: artifact },
+      );
+
+      const command = send.mock.calls[1]?.[0] as PutObjectCommand;
+      expect(command.input.ContentDisposition).toBe(
+        "attachment; filename=\"wakil-output.pdf\"; filename*=UTF-8''%D8%AA%D9%82%D8%B1%D9%8A%D8%B1%20%D8%A7%D9%84%D9%85%D8%A8%D9%8A%D8%B9%D8%A7%D8%AA.pdf",
+      );
+      expect(command.input.ContentDisposition).toMatch(/^[\x20-\x7E]+$/);
+    } finally {
+      send.mockRestore();
+    }
+  });
+
   it("validates the complete private storage lifecycle and cleanup", async () => {
     let uploadedBytes: Uint8Array | undefined;
     let uploadedChecksum: string | undefined;
