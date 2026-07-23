@@ -53,6 +53,20 @@ function providerFailure(error: ProviderError): PlanningFailureCode {
   return "provider_unavailable";
 }
 
+function parseJsonResponse(content: string): unknown {
+  const trimmed = content.trim().replace(/^\uFEFF/, "");
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1]?.trim();
+  const candidate = fenced ?? trimmed;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    const start = candidate.indexOf("{");
+    const end = candidate.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("model response does not contain JSON");
+    return JSON.parse(candidate.slice(start, end + 1));
+  }
+}
+
 export async function generateFileArtifact(
   input: FileArtifactGenerationInput,
 ): Promise<FileArtifactGenerationResult> {
@@ -108,7 +122,7 @@ export async function generateFileArtifact(
       if (!completed) return { attempts: attempt, code: "invalid_response", ok: false };
       let json: unknown;
       try {
-        json = JSON.parse(content);
+        json = parseJsonResponse(content);
       } catch {
         return { attempts: attempt, code: "invalid_response", ok: false };
       }
