@@ -40,7 +40,7 @@ describe("PreviewExperience", () => {
       "true",
     );
     expect(screen.getByRole("button", { name: "تحديث المعاينة" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "نسخ رابط المعاينة" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "نسخ رابط المعاينة الخاص" })).toBeVisible();
     expect(screen.getByRole("button", { name: "ملء الشاشة" })).toBeVisible();
     expect(screen.getByTitle("معاينة موقع مشروع تجريبي")).toHaveAttribute(
       "sandbox",
@@ -69,7 +69,9 @@ describe("PreviewExperience", () => {
       { scroll: false },
     );
     expect(screen.getByRole("button", { name: "هاتف" })).toHaveAttribute("aria-pressed", "true");
-    expect(container.querySelector(".w-\\[390px\\]")).toBeInTheDocument();
+    const mobileStage = container.querySelector(".w-\\[390px\\]");
+    expect(mobileStage).toBeInTheDocument();
+    expect(mobileStage).not.toHaveClass("max-w-full");
   });
 
   it("copies a stable authorized application route instead of the signed object URL", async () => {
@@ -83,13 +85,13 @@ describe("PreviewExperience", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "نسخ رابط المعاينة" }));
+    fireEvent.click(screen.getByRole("button", { name: "نسخ رابط المعاينة الخاص" }));
     await waitFor(() =>
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
         "http://localhost:3000/projects/project-1/preview?artifact=artifact-1",
       ),
     );
-    expect(screen.getByRole("status")).toHaveTextContent("تم نسخ رابط المعاينة");
+    expect(screen.getByRole("status")).toHaveTextContent("تم نسخ رابط خاص بحسابك");
   });
 
   it("explains when the browser cannot enter full-screen", async () => {

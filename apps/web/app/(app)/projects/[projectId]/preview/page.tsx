@@ -70,7 +70,7 @@ export default async function ProjectPreviewPage({
         title={`معاينة: ${project.title}`}
         start={<BackToProjectButton projectId={project.id} />}
       />
-      <PageShell>
+      <PageShell className="max-w-none">
         <StatusBanner className="mb-4" tone="info">
           اجتازت النتيجة التحقق المعزول. المعاينة خاصة ومؤقتة، والتنزيل يمر عبر صلاحيات المشروع.
         </StatusBanner>

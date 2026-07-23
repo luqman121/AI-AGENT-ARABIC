@@ -167,9 +167,9 @@ export function PreviewExperience({
         <div
           className={
             viewport === "mobile"
-              ? "mx-auto w-[390px] max-w-full overflow-hidden rounded-md border border-line bg-white"
+              ? "mx-auto w-[390px] shrink-0 overflow-hidden rounded-md border border-line bg-white"
               : viewport === "tablet"
-                ? "mx-auto w-[768px] max-w-full overflow-hidden rounded-md border border-line bg-white"
+                ? "mx-auto w-[768px] shrink-0 overflow-hidden rounded-md border border-line bg-white"
                 : "overflow-hidden rounded-md border border-line bg-white"
           }
         >
