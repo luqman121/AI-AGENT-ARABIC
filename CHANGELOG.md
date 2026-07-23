@@ -4,6 +4,41 @@ All notable changes to Wakil are documented in this file.
 
 ## Unreleased
 
+### Skills runtime: live-verification runbook (merged with verification outstanding)
+
+- Added `scripts/verify-skills-runtime-live.ts`: a standalone script that calls the real
+  `@wakil/agent-core` generation functions (`generatePlanningTurn`, `generateStaticSite`,
+  `generateStaticSiteWithReview`) through a real `@wakil/model-router` provider adapter — no Docker,
+  queue, or database required. Runs the three required trial prompts through both the legacy and
+  skills-runtime paths and writes prompts/HTML/metadata evidence to `artifacts/live-verification/`
+  (gitignored). Dry-run verified in this session (fails with a clear, controlled error when no
+  provider key is configured); not executed end-to-end here — see the limitation below.
+- Added `docs/skills-runtime-live-verification-runbook.md`: exact commands for the Docker-gated
+  worker integration tests, the live-provider trial (via the new script or the full `pnpm dev`
+  worker path), the three required trial prompts, real-render inspection, and the merge checklist,
+  for whoever runs this in an environment with Docker registry access and a provider key.
+- **Honest limitation — this increment's two hardest verification requirements were not met in this
+  build environment, and this is disclosed rather than worked around:**
+  - **Docker-gated integration tests were not executed.** The build sandbox's `dockerd` starts
+    successfully, but pulling any container image (tested against Docker Hub's CDN and GHCR) is
+    rejected by the sandbox's egress proxy with a policy denial (`403` / `connect_rejected`), which
+    blocks both `docker compose` and Testcontainers. This is a sandbox network-policy constraint,
+    not a code issue.
+  - **No live model-provider trial was completed.** No `OPENROUTER_API_KEY` / `OPENAI_API_KEY` /
+    `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` was configured in this environment, and no credential was
+    fabricated or guessed. (For the record: `api.anthropic.com` was found to be directly reachable
+    from the sandbox, unlike the other three provider hosts — a real Anthropic key would have made a
+    live trial possible there.)
+  - Everything achievable without Docker or a live key was re-verified in this session: the full
+    `pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm format:check` gate (all green),
+    and a fresh, non-cached re-run of the real Chromium-based render checks from Increment 2
+    (genuine screenshots, genuine overflow/console assertions against scripted-but-real generation
+    output).
+- Per explicit user instruction, this branch was merged into `main` with these two criteria still
+  outstanding; `AGENT_SKILLS_RUNTIME_ENABLED` remains `false` everywhere, so this merge changes no
+  production behavior. The runbook above is the concrete next step before enabling the flag
+  anywhere.
+
 ### Skills runtime connected to live website generation (feature-flagged)
 
 - Wired the Skills Runtime into the real customer-facing website generation call
